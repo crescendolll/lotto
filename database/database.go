@@ -1,12 +1,14 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"lotto/lottologic"
 	"os"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -59,12 +61,22 @@ func InsertIntoSpieler(databasehandle *sql.DB, benutzername string, pw_hash stri
 
 	insertError = lottologic.IstNameVerfuegbar(databasehandle, benutzername)
 
-	if insertError == nil {
-		_, insertError = databasehandle.Exec("INSERT INTO nutzer (benutzername, pw_hash, ist_spieler) VALUES (?,?,1)", benutzername, pw_hash)
-		fmt.Printf("INSERT INTO nutzer (benutzername, pw_hash, ist_spieler) VALUES (%s,%s,1)\n", benutzername, pw_hash)
+	if insertError != nil {
+		return insertError
 	}
 
-	return insertError
+	context, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := "INSERT INTO nutzer (benutzername, pw_hash, ist_spieler) VALUES (?,?,1)"
+	statement, err := databasehandle.PrepareContext(context, query)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	_, err = statement.ExecContext(context, benutzername, pw_hash)
+	return err
 }
 
 func UpdateSpieler(databasehandle *sql.DB, alterBenutzername string, neuerBenutzername string, neuesPasswort string) error {
