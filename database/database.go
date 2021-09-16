@@ -108,6 +108,32 @@ func DeleteFromSpieler(databasehandle *sql.DB, benutzername string) error {
 
 }
 
+func SelectFromSpielerByName(databasehandle *sql.DB, benutzername string) (lottologic.Nutzer, error) {
+
+	var nutzer lottologic.Nutzer
+	var selectError error
+
+	rows, selectError := databasehandle.Query("SELECT * from nutzer WHERE benutzername = ?", benutzername)
+	fmt.Printf("SELECT * from nutzer WHERE benutzername = %s\n", benutzername)
+	if selectError != nil {
+		return nutzer, selectError
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if scanError := rows.Scan(&nutzer.Benutzername, &nutzer.Pw_hash, &nutzer.Ist_spieler); scanError != nil {
+			return nutzer, scanError
+		}
+	}
+
+	if sqlError := rows.Err(); sqlError != nil {
+		return nutzer, sqlError
+	}
+
+	return nutzer, selectError
+
+}
+
 // nur Abgabe eines gültigen Tipps für ein Datum nach der letzten erfolgten Ziehung möglich
 func InsertIntoTipps(databasehandle *sql.DB, tipp lottologic.Tipp, spieler lottologic.Nutzer) error {
 

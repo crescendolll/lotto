@@ -1,16 +1,14 @@
 package main
 
 import (
-	"lotto/database"
+	"lotto/lottoapi"
 	"lotto/lottohttp"
 	"net/http"
 )
 
 func main() {
 
-	databasehandle := database.OpenLottoConnection()
-
-	database.CloseLottoConnection(databasehandle)
+	lottoapi.InitNutzer()
 
 	http.HandleFunc("/", lottohttp.HttpResponder)
 	http.ListenAndServe(":8080", nil)
