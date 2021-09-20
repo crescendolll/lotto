@@ -55,7 +55,7 @@ func CloseLottoConnection(databasehandle *sql.DB) {
 }
 
 // es dürfen nur neue Spieler eingefügt werden, keine Mitarbeiter
-func InsertIntoSpieler(databasehandle *sql.DB, benutzername string, pw_hash string) error {
+func InsertIntoSpieler(databasehandle *sql.DB, benutzername string, password string) error {
 
 	var insertError error
 
@@ -67,6 +67,8 @@ func InsertIntoSpieler(databasehandle *sql.DB, benutzername string, pw_hash stri
 
 	context, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	pw_hash, _ := lottologic.HashPassword(password)
 
 	query := "INSERT INTO nutzer (benutzername, pw_hash, ist_spieler) VALUES (?,?,1)"
 	statement, err := databasehandle.PrepareContext(context, query)

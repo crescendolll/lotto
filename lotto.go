@@ -1,16 +1,9 @@
 package main
 
-import (
-	"lotto/lottoapi"
-	"lotto/lottohttp"
-	"net/http"
-)
+import "lotto/lottohttp"
 
 func main() {
 
-	lottoapi.InitNutzer()
-
-	http.HandleFunc("/", lottohttp.HttpResponder)
-	http.ListenAndServe(":8080", nil)
+	lottohttp.OpenLottoServer()
 
 }
