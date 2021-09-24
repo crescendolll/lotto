@@ -32,7 +32,6 @@ func HttpResponder(responsewriter http.ResponseWriter, request *http.Request) {
 		responsewriter.Write(jsonResp)
 		return
 	}
-
 	var apirequest lottojson.LottoRequest
 
 	decoder := json.NewDecoder(request.Body)

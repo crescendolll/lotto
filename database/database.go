@@ -29,6 +29,7 @@ func OpenLottoConnection() *sql.DB {
 	// Datenbankzugriff öffnen
 	var database *sql.DB
 	var accessError error
+	fmt.Println(configuration.FormatDSN())
 	database, accessError = sql.Open("mysql", configuration.FormatDSN())
 	if accessError != nil {
 		log.Fatal(accessError)
