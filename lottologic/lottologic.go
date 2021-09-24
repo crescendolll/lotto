@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/guregu/null"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -28,7 +29,7 @@ type Tipp struct {
 
 type Ziehung struct {
 	Datum   time.Time
-	Ziehung string
+	Ziehung null.String
 }
 
 type Auszahlung struct {
@@ -38,7 +39,27 @@ type Auszahlung struct {
 	Auszahlung float64
 }
 
-func IstNameVerfuegbar(database *sql.DB, benutzername string) error {
+type Tippauszahlung struct {
+	Id         int64
+	Datum      time.Time
+	Ziehung    string
+	Klasse     int8
+	Auszahlung float64
+}
+
+type Ziehungauszahlung struct {
+	Datum        time.Time
+	Ziehung      null.String
+	Auszahlungen []Auszahlungsstatistik
+}
+
+type Auszahlungsstatistik struct {
+	Klasse   int8
+	Gewinner int
+	Gewinn   float64
+}
+
+func IstNameVerfuegbar(databasehandle *sql.DB, benutzername string) error {
 
 	var ist_verfuegbar bool
 
@@ -46,7 +67,7 @@ func IstNameVerfuegbar(database *sql.DB, benutzername string) error {
 
 	var belegtError error
 
-	rows, err := database.Query("SELECT COUNT(*) as anzahl FROM nutzer WHERE benutzername = ?", benutzername)
+	rows, err := databasehandle.Query("SELECT COUNT(*) as anzahl FROM nutzer WHERE benutzername = ?", benutzername)
 	fmt.Printf("SELECT COUNT(*) as anzahl FROM nutzer WHERE benutzername = %s\n", benutzername)
 
 	if err != nil {
@@ -134,7 +155,7 @@ func IstValideZiehung(ziehung string) bool {
 
 }
 
-func IstValidesTippdatum(databasehandle *sql.DB, tippdatum time.Time) bool {
+func IstValidesZiehungsdatum(databasehandle *sql.DB, ziehungsdatum time.Time) bool {
 
 	var valid bool
 
@@ -142,7 +163,7 @@ func IstValidesTippdatum(databasehandle *sql.DB, tippdatum time.Time) bool {
 
 	var letzteZiehung time.Time
 
-	query := "SELECT MAX(datum) as letzteZiehung FROM ziehungen"
+	query := "SELECT MAX(datum) as letzteZiehung FROM ziehungen WHERE ziehung IS NOT NULL"
 	fmt.Println(query)
 
 	rows, err := databasehandle.Query(query)
@@ -158,7 +179,35 @@ func IstValidesTippdatum(databasehandle *sql.DB, tippdatum time.Time) bool {
 		}
 	}
 
-	valid = tippdatum.Truncate(24 * time.Hour).After(letzteZiehung.Truncate(24 * time.Hour))
+	valid = ziehungsdatum.Truncate(24 * time.Hour).After(letzteZiehung.Truncate(24 * time.Hour))
+
+	return valid
+
+}
+
+func IstOffenesZiehungsdatum(databasehandle *sql.DB, tippdatum time.Time) bool {
+
+	var valid bool
+
+	valid = false
+
+	var anzahl int
+
+	query := "SELECT COUNT(*) as anzahl FROM ziehungen WHERE datum = '" + tippdatum.Format("2006-01-02") + "' AND ziehung IS NULL"
+	fmt.Println(query)
+
+	rows, err := databasehandle.Query(query)
+
+	if err != nil {
+		log.Println(err)
+		return false
+	} else {
+		for rows.Next() {
+			rows.Scan(&anzahl)
+		}
+	}
+
+	valid = anzahl > 0
 
 	return valid
 
@@ -173,7 +222,7 @@ func IstZahlInSlice(slice []int, gesucht int) bool {
 	return false
 }
 
-func BerechneAuszahlungen(databasehandle *sql.DB, datum time.Time) ([]Auszahlung, error) {
+func BerechneAuszahlungen(transaktion *sql.Tx, datum time.Time) ([]Auszahlung, error) {
 
 	var auszahlungen []Auszahlung
 	var gesamteinsatz float64
@@ -183,7 +232,7 @@ func BerechneAuszahlungen(databasehandle *sql.DB, datum time.Time) ([]Auszahlung
 
 	query := "SELECT COUNT(*) as anzahl FROM tipps WHERE datum = '" + datum.Format("2006-01-02") + "'"
 
-	rows, err := databasehandle.Query(query)
+	rows, err := transaktion.Query(query)
 	fmt.Println(query)
 
 	if err != nil {
@@ -199,7 +248,7 @@ func BerechneAuszahlungen(databasehandle *sql.DB, datum time.Time) ([]Auszahlung
 
 	var gewinnanzahl [10]int
 
-	gewinnanzahl = BerechneGewinnanzahl(databasehandle, datum)
+	gewinnanzahl = BerechneGewinneranzahl(transaktion, datum)
 
 	fmt.Printf("Startbudget: %.2f\n", gesamteinsatz)
 
@@ -229,7 +278,7 @@ func BerechneAuszahlungen(databasehandle *sql.DB, datum time.Time) ([]Auszahlung
 
 	sechsrichtigesuper := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.128, datum, 9)
 	gesamteinsatz = gesamteinsatz - sechsrichtigesuper.Budget
-	sechsrichtigesuper = BerechneJackpot(databasehandle, sechsrichtigesuper)
+	sechsrichtigesuper = BerechneJackpot(transaktion, sechsrichtigesuper)
 	auszahlungen = append(auszahlungen, sechsrichtigesuper)
 
 	fmt.Printf("Budget nach Abzug vom Budget für 6 Richtige mit Superzahl: %.2f\n", gesamteinsatz)
@@ -279,7 +328,7 @@ func BerechneAuszahlung(gesamteinsatz float64, gewinnanzahl [10]int, budgetfakto
 	return auszahlung
 }
 
-func BerechneJackpot(databasehandle *sql.DB, jackpotAuszahlung Auszahlung) Auszahlung {
+func BerechneJackpot(transaktion *sql.Tx, jackpotAuszahlung Auszahlung) Auszahlung {
 
 	var jackpot float64
 	var auszahlung float64
@@ -288,7 +337,7 @@ func BerechneJackpot(databasehandle *sql.DB, jackpotAuszahlung Auszahlung) Ausza
 	query := "SELECT budget, auszahlung FROM auszahlungen WHERE klasse = 9 AND datum = (SELECT MAX(datum) FROM auszahlungen)"
 	fmt.Println(query)
 
-	rows, err := databasehandle.Query(query)
+	rows, err := transaktion.Query(query)
 	fmt.Println(query)
 
 	if err != nil {
@@ -308,7 +357,7 @@ func BerechneJackpot(databasehandle *sql.DB, jackpotAuszahlung Auszahlung) Ausza
 
 }
 
-func BerechneGewinnanzahl(databasehandle *sql.DB, datum time.Time) [10]int {
+func BerechneGewinneranzahl(transaktion *sql.Tx, datum time.Time) [10]int {
 
 	var gewinnanzahl [10]int
 
@@ -324,7 +373,7 @@ func BerechneGewinnanzahl(databasehandle *sql.DB, datum time.Time) [10]int {
 
 	query := "SELECT ziehung FROM ziehungen WHERE datum = '" + datum.Format("2006-01-02") + "'"
 
-	ziehungsdaten, err := databasehandle.Query(query)
+	ziehungsdaten, err := transaktion.Query(query)
 	fmt.Println(query)
 
 	if err != nil {
@@ -337,7 +386,7 @@ func BerechneGewinnanzahl(databasehandle *sql.DB, datum time.Time) [10]int {
 
 	query = "SELECT ziehung FROM tipps WHERE datum = '" + datum.Format("2006-01-02") + "'"
 
-	tippdaten, err := databasehandle.Query(query)
+	tippdaten, err := transaktion.Query(query)
 	fmt.Println(query)
 
 	if err != nil {
@@ -363,26 +412,30 @@ func BerechneGewinnanzahl(databasehandle *sql.DB, datum time.Time) [10]int {
 
 }
 
-func BerechneGewinnklasse(tipp string, ziehung string) int {
+func BerechneGewinnklasse(tipp string, ziehung string) int8 {
 
-	var gewinnklasse int
+	var gewinnklasse int8
 
 	gewinnklasse = -4
 
-	for tippindex := 0; tippindex < 6; tippindex++ {
+	if IstValideZiehung(tipp) && IstValideZiehung(ziehung) {
 
-		for ziehungsindex := 0; ziehungsindex < 6; ziehungsindex++ {
+		for tippindex := 0; tippindex < 6; tippindex++ {
 
-			if tipp[2*tippindex:2*tippindex+2] == ziehung[2*ziehungsindex:2*ziehungsindex+2] {
-				gewinnklasse = gewinnklasse + 2
+			for ziehungsindex := 0; ziehungsindex < 6; ziehungsindex++ {
+
+				if tipp[2*tippindex:2*tippindex+2] == ziehung[2*ziehungsindex:2*ziehungsindex+2] {
+					gewinnklasse = gewinnklasse + 2
+				}
+
 			}
 
 		}
 
-	}
+		if tipp[12] == ziehung[12] {
+			gewinnklasse = gewinnklasse + 1
+		}
 
-	if tipp[12] == ziehung[12] {
-		gewinnklasse = gewinnklasse + 1
 	}
 
 	return gewinnklasse

@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"log"
+	"lotto/lottologic"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -25,6 +26,8 @@ func TestInsertIntoSpieler(test *testing.T) {
 	benutzername := "Ingo"
 	pw_hash := "23bonobo42"
 
+	pw_hash, _ = lottologic.HashPassword(pw_hash)
+
 	selectQuery := "SELECT COUNT\\(\\*\\) as anzahl FROM nutzer WHERE benutzername = \\?"
 
 	rows := sqlmock.NewRows([]string{"anzahl"}).AddRow(0)
@@ -36,7 +39,7 @@ func TestInsertIntoSpieler(test *testing.T) {
 	prep := mock.ExpectPrepare(insertQuery)
 	prep.ExpectExec().WithArgs(benutzername, pw_hash).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := InsertIntoSpieler(databasehandle, benutzername, pw_hash)
+	err := InsertSpielerIntoNutzer(databasehandle, benutzername, pw_hash)
 
 	assert.NoError(test, err)
 }

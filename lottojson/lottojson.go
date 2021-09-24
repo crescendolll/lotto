@@ -1,12 +1,14 @@
 package lottojson
 
+import "lotto/lottologic"
+
 type LottoRequest struct {
 	Methode string            `json:"methode"`
 	Param   map[string]string `json:"param"`
 	Auth    string            `json:"auth"`
 }
 
-type Errorresponse struct {
+type ErrorResponse struct {
 	Errormessage string `json:"errormessage"`
 }
 
@@ -21,6 +23,17 @@ type RegistrationResponse struct {
 	Auth         string `json:"auth"`
 }
 
-type LogoutResponse struct {
-	Errormessage string `json:"errormessage"`
+type GetZiehungenResponse struct {
+	Errormessage string   `json:"errormessage"`
+	Ziehungen    []string `json:"ziehungstage"`
+}
+
+type GetTippsResponse struct {
+	Errormessage     string                      `json:"errormessage"`
+	Tippauszahlungen []lottologic.Tippauszahlung `json:"statistik"`
+}
+
+type GetZiehungenMitAuszahlungenResponse struct {
+	Errormessage         string                         `json:"errormessage"`
+	Ziehungsauszahlungen []lottologic.Ziehungauszahlung `json:"statistik"`
 }

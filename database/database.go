@@ -8,6 +8,7 @@ import (
 	"log"
 	"lotto/lottologic"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -54,8 +55,194 @@ func CloseLottoConnection(databasehandle *sql.DB) {
 
 }
 
-// es dürfen nur neue Spieler eingefügt werden, keine Mitarbeiter
-func InsertIntoSpieler(databasehandle *sql.DB, benutzername string, password string) error {
+func HoleZiehungenMitAuszahlungen(databasehandle *sql.DB, von time.Time, bis time.Time) ([]lottologic.Ziehungauszahlung, error) {
+
+	var ziehungsauszahlungen []lottologic.Ziehungauszahlung
+	var err error
+
+	var ziehungen []lottologic.Ziehung
+
+	var ziehungsauszahlung lottologic.Ziehungauszahlung
+
+	var auszahlungen []lottologic.Auszahlung
+
+	var gewinneranzahl [10]int
+
+	var auszahlungsstatistiken []lottologic.Auszahlungsstatistik
+	var auszahlungsstatistik lottologic.Auszahlungsstatistik
+
+	ziehungen, err = SelectFromZiehungen(databasehandle, von, bis)
+
+	if err != nil {
+		return ziehungsauszahlungen, err
+	}
+
+	for _, ziehung := range ziehungen {
+		ziehungsauszahlung.Datum = ziehung.Datum
+		ziehungsauszahlung.Ziehung = ziehung.Ziehung
+
+		auszahlungsstatistiken = make([]lottologic.Auszahlungsstatistik, 0)
+
+		if ziehung.Ziehung.Ptr() != nil {
+			berechnungstransaktion, _ := databasehandle.Begin()
+
+			auszahlungen, err = SelectAuszahlungenByDate(databasehandle, ziehung.Datum)
+
+			if err != nil {
+				berechnungstransaktion.Rollback()
+				return ziehungsauszahlungen, err
+			}
+
+			gewinneranzahl = lottologic.BerechneGewinneranzahl(berechnungstransaktion, ziehung.Datum)
+
+			for _, auszahlung := range auszahlungen {
+				auszahlungsstatistik.Klasse = auszahlung.Klasse
+				auszahlungsstatistik.Gewinn = auszahlung.Auszahlung
+				auszahlungsstatistik.Gewinner = gewinneranzahl[auszahlung.Klasse]
+
+				auszahlungsstatistiken = append(auszahlungsstatistiken, auszahlungsstatistik)
+			}
+
+			berechnungstransaktion.Commit()
+		}
+
+		ziehungsauszahlung.Auszahlungen = auszahlungsstatistiken
+
+		ziehungsauszahlungen = append(ziehungsauszahlungen, ziehungsauszahlung)
+	}
+
+	return ziehungsauszahlungen, err
+}
+
+func SelectAuszahlungenByDate(databasehandle *sql.DB, datum time.Time) ([]lottologic.Auszahlung, error) {
+
+	var auszahlungen []lottologic.Auszahlung
+	var auszahlung lottologic.Auszahlung
+	var err error
+
+	rows, selectError := databasehandle.Query("SELECT klasse, auszahlung from auszahlungen WHERE datum = '" + datum.Format("2006-01-02") + "'")
+	fmt.Printf("SELECT klasse, auszahlung from auszahlungen WHERE datum = '" + datum.Format("2006-01-02") + "'\n")
+	if selectError != nil {
+		return auszahlungen, selectError
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if scanError := rows.Scan(&auszahlung.Klasse, &auszahlung.Auszahlung); scanError != nil {
+			return auszahlungen, scanError
+		}
+		auszahlungen = append(auszahlungen, auszahlung)
+	}
+
+	if sqlError := rows.Err(); sqlError != nil {
+		return auszahlungen, sqlError
+	}
+	return auszahlungen, err
+
+}
+
+func HoleTippauszahlungenFuerSpieler(databasehandle *sql.DB, spielername string, von time.Time, bis time.Time) ([]lottologic.Tippauszahlung, error) {
+
+	var tippauszahlungen []lottologic.Tippauszahlung
+	var err error
+
+	var tipps []lottologic.Tipp
+
+	var ziehung lottologic.Ziehung
+	var auszahlung lottologic.Auszahlung
+	var tippauszahlung lottologic.Tippauszahlung
+
+	tipps, err = SelectFromTippsBySpielername(databasehandle, spielername, von, bis)
+
+	tippauszahlungen = make([]lottologic.Tippauszahlung, 0)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tipp := range tipps {
+
+		tippauszahlung.Id = tipp.Id
+		tippauszahlung.Datum = tipp.Datum
+		tippauszahlung.Ziehung = tipp.Ziehung
+
+		ziehung, err = SelectFromZiehungByDate(databasehandle, tipp.Datum)
+		if err != nil {
+			break
+		} else {
+			tippauszahlung.Klasse = lottologic.BerechneGewinnklasse(tipp.Ziehung, ziehung.Ziehung.String)
+		}
+
+		auszahlung.Auszahlung = 0.0
+
+		if tippauszahlung.Klasse >= 0 {
+			auszahlung, err = SelectFromAuszahlungByDateAndClass(databasehandle, tipp.Datum, tippauszahlung.Klasse)
+		}
+		if err != nil {
+			break
+		}
+
+		tippauszahlung.Auszahlung = auszahlung.Auszahlung
+
+		tippauszahlungen = append(tippauszahlungen, tippauszahlung)
+
+	}
+
+	return tippauszahlungen, err
+
+}
+
+func SelectFromAuszahlungByDateAndClass(databasehandle *sql.DB, datum time.Time, klasse int8) (lottologic.Auszahlung, error) {
+
+	var auszahlung lottologic.Auszahlung
+	var err error
+
+	rows, selectError := databasehandle.Query("SELECT auszahlung from auszahlungen WHERE datum = '" + datum.Format("2006-01-02") + "' AND klasse = " + strconv.Itoa(int(klasse)))
+	fmt.Printf("SELECT auszahlung from auszahlungen WHERE datum = '" + datum.Format("2006-01-02") + "' AND klasse = " + strconv.Itoa(int(klasse)) + "\n")
+	if selectError != nil {
+		return auszahlung, selectError
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if scanError := rows.Scan(&auszahlung.Auszahlung); scanError != nil {
+			return auszahlung, scanError
+		}
+	}
+
+	if sqlError := rows.Err(); sqlError != nil {
+		return auszahlung, sqlError
+	}
+	return auszahlung, err
+
+}
+
+func SelectFromZiehungByDate(databasehandle *sql.DB, datum time.Time) (lottologic.Ziehung, error) {
+
+	var ziehung lottologic.Ziehung
+	var selectError error
+
+	rows, selectError := databasehandle.Query("SELECT * from ziehungen WHERE datum = '" + datum.Format("2006-01-02") + "'")
+	fmt.Printf("SELECT * FROM ziehungen WHERE datum = '" + datum.Format("2006-01-02") + "'\n")
+	if selectError != nil {
+		return ziehung, selectError
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if scanError := rows.Scan(&ziehung.Datum, &ziehung.Ziehung); scanError != nil {
+			return ziehung, scanError
+		}
+	}
+
+	if sqlError := rows.Err(); sqlError != nil {
+		return ziehung, sqlError
+	}
+
+	return ziehung, selectError
+}
+
+func InsertSpielerIntoNutzer(databasehandle *sql.DB, benutzername string, password string) error {
 
 	var insertError error
 
@@ -81,6 +268,32 @@ func InsertIntoSpieler(databasehandle *sql.DB, benutzername string, password str
 	return err
 }
 
+func InsertMitarbeiterIntoNutzer(databasehandle *sql.DB, benutzername string, password string) error {
+
+	var insertError error
+
+	insertError = lottologic.IstNameVerfuegbar(databasehandle, benutzername)
+
+	if insertError != nil {
+		return insertError
+	}
+
+	context, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	pw_hash, _ := lottologic.HashPassword(password)
+
+	query := "INSERT INTO nutzer (benutzername, pw_hash, ist_spieler) VALUES (?,?,0)"
+	statement, err := databasehandle.PrepareContext(context, query)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	_, err = statement.ExecContext(context, benutzername, pw_hash)
+	return err
+}
+
 func UpdateSpieler(databasehandle *sql.DB, alterBenutzername string, neuerBenutzername string, neuesPasswort string) error {
 
 	var updateError error
@@ -90,8 +303,9 @@ func UpdateSpieler(databasehandle *sql.DB, alterBenutzername string, neuerBenutz
 	}
 
 	if updateError == nil {
-		_, updateError = databasehandle.Exec("UPDATE nutzer set pw_hash = ?, benutzername = ? WHERE benutzername = ?", neuesPasswort, neuerBenutzername, alterBenutzername)
-		fmt.Printf("UPDATE nutzer set pw_hash = %s, benutzername = %s WHERE benutzername = %s\n", neuesPasswort, neuerBenutzername, alterBenutzername)
+		neuerHash, _ := lottologic.HashPassword(neuesPasswort)
+		_, updateError = databasehandle.Exec("UPDATE nutzer set pw_hash = ?, benutzername = ? WHERE benutzername = ?", neuerHash, neuerBenutzername, alterBenutzername)
+		fmt.Printf("UPDATE nutzer set pw_hash = %s, benutzername = %s WHERE benutzername = %s\n", neuerHash, neuerBenutzername, alterBenutzername)
 	}
 
 	return updateError
@@ -148,7 +362,7 @@ func InsertIntoTipps(databasehandle *sql.DB, tipp lottologic.Tipp, spieler lotto
 		return insertError
 	}
 
-	if !lottologic.IstValidesTippdatum(databasehandle, tipp.Datum) {
+	if !lottologic.IstValidesZiehungsdatum(databasehandle, tipp.Datum) {
 		insertError = errors.New("Kein gültiges Tippdatum: " + tipp.Datum.Format("2006-01-02"))
 		return insertError
 	}
@@ -200,14 +414,25 @@ func InsertIntoSpielerTipps(tippID int64, spielername string, tippTransaktion *s
 
 }
 
-func SelectFromTippsBySpielername(databasehandle *sql.DB, spielername string) ([]lottologic.Tipp, error) {
+func InsertIntoMitarbeiterZiehungen(ziehungsdatum time.Time, mitarbeitername string, aktion bool, tippTransaktion *sql.Tx) error {
+
+	var insertError error
+
+	_, insertError = tippTransaktion.Exec("INSERT INTO mitarbeiter_ziehungen (datum, mitarbeitername, aktion) VALUES (?,?,?)", ziehungsdatum.Format("2006-01-02"), mitarbeitername, aktion)
+	fmt.Printf("INSERT INTO mitarbeiter_ziehungen (datum, mitarbeitername, aktion) VALUES (%s,%s,%t)\n", ziehungsdatum.Format("2006-01-02"), mitarbeitername, aktion)
+
+	return insertError
+
+}
+
+func SelectFromTippsBySpielername(databasehandle *sql.DB, spielername string, von time.Time, bis time.Time) ([]lottologic.Tipp, error) {
 
 	var tipps []lottologic.Tipp
 
 	rows, selectError := databasehandle.Query("SELECT tipps.id, tipps.datum, tipps.ziehung FROM spieler_tipps, tipps "+
-		"WHERE spieler_tipps.spielername = ? AND spieler_tipps.id = tipps.id", spielername)
+		"WHERE spieler_tipps.spielername = ? AND spieler_tipps.id = tipps.id AND tipps.datum >= ? AND tipps.datum <= ?", spielername, von, bis)
 	fmt.Printf("SELECT tipps.id, tipps.datum, tipps.ziehung FROM spieler_tipps, tipps "+
-		"WHERE spieler_tipps.spielername = %s AND spieler_tipps.id = tipps.id\n", spielername)
+		"WHERE spieler_tipps.spielername = %s AND spieler_tipps.id = tipps.id AND tipps.datum >= %s AND tipps.datum <= %s\n", spielername, von.Format("2006-01-02"), bis.Format("2006-01-02"))
 	if selectError != nil {
 		return nil, selectError
 	}
@@ -227,19 +452,11 @@ func SelectFromTippsBySpielername(databasehandle *sql.DB, spielername string) ([
 	return tipps, nil
 }
 
-// es dürfen nur gültige Ziehungen nach der letzten Ziehung eingetragen werden
-// wird eine Ziehung eingetragen, werden die Gewinnauszahlungen mitberechnet und gespeichert
-func InsertIntoZiehungen(databasehandle *sql.DB, ziehung lottologic.Ziehung) error {
+func InsertIntoZiehungen(databasehandle *sql.DB, ziehung lottologic.Ziehung, mitarbeiter lottologic.Nutzer) error {
 
 	var insertError error
-	var auszahlungen []lottologic.Auszahlung
 
-	if !lottologic.IstValideZiehung(ziehung.Ziehung) {
-		insertError = errors.New(ziehung.Ziehung + " ist keine gültige Ziehung")
-		return insertError
-	}
-
-	if !lottologic.IstValidesTippdatum(databasehandle, ziehung.Datum) {
+	if !lottologic.IstValidesZiehungsdatum(databasehandle, ziehung.Datum) {
 		insertError = errors.New("Kein gültiges Tippdatum: " + ziehung.Datum.Format("2006-01-02"))
 		return insertError
 	}
@@ -247,15 +464,11 @@ func InsertIntoZiehungen(databasehandle *sql.DB, ziehung lottologic.Ziehung) err
 	fmt.Println("Transaktion beginnt")
 	ziehungTransaktion, _ := databasehandle.Begin()
 
-	_, insertError = ziehungTransaktion.Exec("INSERT INTO ziehungen (datum, ziehung) VALUES (?,?)", ziehung.Datum.Format("2006-01-02"), ziehung.Ziehung)
-	fmt.Printf("INSERT INTO ziehungen (datum, ziehung) VALUES (%s,%s)\n", ziehung.Datum.Format("2006-01-02"), ziehung.Ziehung)
+	_, insertError = ziehungTransaktion.Exec("INSERT INTO ziehungen (datum) VALUES (?)", ziehung.Datum.Format("2006-01-02"))
+	fmt.Printf("INSERT INTO ziehungen (datum) VALUES (%s)\n", ziehung.Datum.Format("2006-01-02"))
 
 	if insertError == nil {
-		auszahlungen, insertError = lottologic.BerechneAuszahlungen(databasehandle, ziehung.Datum)
-	}
-
-	if insertError == nil {
-		insertError = InsertIntoAuszahlungen(ziehungTransaktion, auszahlungen)
+		insertError = InsertIntoMitarbeiterZiehungen(ziehung.Datum, mitarbeiter.Benutzername, false, ziehungTransaktion)
 	}
 
 	if insertError != nil {
@@ -270,13 +483,86 @@ func InsertIntoZiehungen(databasehandle *sql.DB, ziehung lottologic.Ziehung) err
 
 }
 
-func SelectFromZiehungen(databasehandle *sql.DB) ([]lottologic.Ziehung, error) {
+func UpdateZiehungen(databasehandle *sql.DB, ziehung lottologic.Ziehung, mitarbeiter lottologic.Nutzer) error {
+
+	var updateError error
+	var auszahlungen []lottologic.Auszahlung
+
+	if !lottologic.IstValideZiehung(ziehung.Ziehung.String) {
+		updateError = errors.New(ziehung.Ziehung.String + " ist keine gültige Ziehung")
+		return updateError
+	}
+
+	if !lottologic.IstOffenesZiehungsdatum(databasehandle, ziehung.Datum) {
+		updateError = errors.New(ziehung.Datum.Format("2006-01-02") + " ist kein Datum eines offenen Spiels")
+		return updateError
+	}
+
+	fmt.Println("Transaktion beginnt")
+	ziehungTransaktion, _ := databasehandle.Begin()
+
+	_, updateError = ziehungTransaktion.Exec("UPDATE ziehungen SET ziehung = ? WHERE datum = ?", ziehung.Ziehung, ziehung.Datum.Format("2006-01-02"))
+	fmt.Printf("UPDATE ziehungen SET ziehung = %s WHERE datum = %s\n", ziehung.Ziehung.String, ziehung.Datum.Format("2006-01-02"))
+
+	if updateError == nil {
+		updateError = InsertIntoMitarbeiterZiehungen(ziehung.Datum, mitarbeiter.Benutzername, true, ziehungTransaktion)
+	}
+
+	if updateError == nil {
+		auszahlungen, updateError = lottologic.BerechneAuszahlungen(ziehungTransaktion, ziehung.Datum)
+	}
+
+	if updateError == nil {
+		updateError = InsertIntoAuszahlungen(ziehungTransaktion, auszahlungen)
+	}
+
+	if updateError != nil {
+		fmt.Println("Transaktion abgebrochen")
+		ziehungTransaktion.Rollback()
+	} else {
+		fmt.Println("Transaktion erfolgt")
+		ziehungTransaktion.Commit()
+	}
+
+	return updateError
+
+}
+
+func SelectLaufendeZiehungen(databasehandle *sql.DB) ([]lottologic.Ziehung, error) {
 
 	var ziehungen []lottologic.Ziehung
 	var selectError error
 
-	rows, selectError := databasehandle.Query("SELECT * from ziehungen")
-	fmt.Printf("SELECT * FROM ziehungen\n")
+	rows, selectError := databasehandle.Query("SELECT * from ziehungen WHERE ziehung IS NULL")
+	fmt.Printf("SELECT * FROM ziehungen WHERE ziehung IS NULL\n")
+	if selectError != nil {
+		return nil, selectError
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var ziehung lottologic.Ziehung
+		if scanError := rows.Scan(&ziehung.Datum, &ziehung.Ziehung); scanError != nil {
+			return nil, scanError
+		}
+		ziehungen = append(ziehungen, ziehung)
+	}
+
+	if sqlError := rows.Err(); sqlError != nil {
+		return nil, sqlError
+	}
+
+	return ziehungen, selectError
+
+}
+
+func SelectFromZiehungen(databasehandle *sql.DB, von time.Time, bis time.Time) ([]lottologic.Ziehung, error) {
+
+	var ziehungen []lottologic.Ziehung
+	var selectError error
+
+	rows, selectError := databasehandle.Query("SELECT * from ziehungen WHERE datum >= '" + von.Format("2006-01-02") + "' AND datum <= '" + bis.Format("2006-01-02") + "'")
+	fmt.Printf("SELECT * from ziehungen WHERE datum >= '" + von.Format("2006-01-02") + "' AND datum <= '" + bis.Format("2006-01-02") + "'\n")
 	if selectError != nil {
 		return nil, selectError
 	}

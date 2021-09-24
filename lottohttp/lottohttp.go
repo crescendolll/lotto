@@ -2,12 +2,15 @@ package lottohttp
 
 import (
 	"encoding/json"
+	"fmt"
 	"lotto/lottoapi"
 	"lotto/lottojson"
 	"net/http"
 )
 
 func OpenLottoServer() {
+
+	fmt.Println("Lottoserver läuft")
 
 	lottoapi.InitNutzer()
 
@@ -22,7 +25,7 @@ func HttpResponder(responsewriter http.ResponseWriter, request *http.Request) {
 
 	headerContentType := request.Header.Get("Content-Type")
 	if headerContentType != "application/json" {
-		apiresponse := lottojson.Errorresponse{
+		apiresponse := lottojson.ErrorResponse{
 			Errormessage: "not a JSON",
 		}
 		jsonResp, _ := json.Marshal(apiresponse)
@@ -36,7 +39,7 @@ func HttpResponder(responsewriter http.ResponseWriter, request *http.Request) {
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(&apirequest)
 	if err != nil {
-		apiresponse := lottojson.Errorresponse{
+		apiresponse := lottojson.ErrorResponse{
 			Errormessage: err.Error(),
 		}
 		jsonResp, _ := json.Marshal(apiresponse)

@@ -1,6 +1,8 @@
 package main
 
-import "lotto/lottohttp"
+import (
+	"lotto/lottohttp"
+)
 
 func main() {
 
