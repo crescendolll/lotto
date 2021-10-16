@@ -14,3 +14,4 @@ yarn-error.log*
 .npm/
 .env
 ./src/DEFAULTS_App.css
+lotto-ui/src/DEFAULTS_App.css
