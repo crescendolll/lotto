@@ -1,0 +1,13 @@
+:root {
+    --color1: #2F1160;
+    --color2: #6200FF;
+    --color3: #B9B7BD; 
+    --color4: #EBE9F0;
+    --color5: #FBFAFC;
+    --textcolor: var(--color1);
+    --secondarytextcolor: var(--color2);
+    --hyperlinkcolor: var(--secondarytextcolor);
+}
+b {
+    color: var(--textcolor);
+}
