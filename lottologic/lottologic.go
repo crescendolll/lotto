@@ -3,8 +3,8 @@ package lottologic
 import (
 	"database/sql"
 	"errors"
-	"fmt"
-	"log"
+	"lotto/database"
+	"lotto/lottolog"
 	"math"
 	"math/rand"
 	"regexp"
@@ -15,30 +15,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Nutzer struct {
-	Benutzername string
-	Pw_hash      string
-	Ist_spieler  bool
-}
-
-type Tipp struct {
-	Id      int64
-	Datum   time.Time
-	Ziehung string
-}
-
-type Ziehung struct {
-	Datum   time.Time
-	Ziehung null.String
-}
-
-type Auszahlung struct {
-	Datum      time.Time
-	Klasse     int8
-	Budget     float64
-	Auszahlung float64
-}
-
 type Tippauszahlung struct {
 	Id         int64
 	Datum      time.Time
@@ -47,7 +23,7 @@ type Tippauszahlung struct {
 	Auszahlung float64
 }
 
-type Ziehungauszahlung struct {
+type Ziehungsstatistik struct {
 	Datum        time.Time
 	Ziehung      null.String
 	Auszahlungen []Auszahlungsstatistik
@@ -59,43 +35,378 @@ type Auszahlungsstatistik struct {
 	Gewinn   float64
 }
 
-func IstNameVerfuegbar(databasehandle *sql.DB, benutzername string) error {
+func ErstelleAuszahlungsstatistiken(ziehung database.Ziehung) ([]Auszahlungsstatistik, error) {
 
-	var ist_verfuegbar bool
+	var auszahlungsstatistiken []Auszahlungsstatistik
+	var auszahlungsstatistik Auszahlungsstatistik
+	var auszahlungen []database.Auszahlung
+	var gewinneranzahl [10]int
+	var fehler error
 
-	var anzahl_vorkommen int
+	auszahlungsstatistiken = make([]Auszahlungsstatistik, 0)
 
-	var belegtError error
+	auszahlungen, fehler = database.HoleAuszahlungenZumDatum(ziehung.Datum)
 
-	rows, err := databasehandle.Query("SELECT COUNT(*) as anzahl FROM nutzer WHERE benutzername = ?", benutzername)
-	fmt.Printf("SELECT COUNT(*) as anzahl FROM nutzer WHERE benutzername = %s\n", benutzername)
-
-	if err != nil {
-		log.Println(err)
+	if fehler != nil {
+		return auszahlungsstatistiken, fehler
 	} else {
-		for rows.Next() {
-			rows.Scan(&anzahl_vorkommen)
+		gewinneranzahl, fehler = BerechneGewinneranzahl(ziehung.Datum)
+	}
+
+	if fehler != nil {
+		return auszahlungsstatistiken, fehler
+	}
+
+	for _, auszahlung := range auszahlungen {
+		auszahlungsstatistik.Klasse = auszahlung.Klasse
+		auszahlungsstatistik.Gewinn = auszahlung.Auszahlung
+		auszahlungsstatistik.Gewinner = gewinneranzahl[auszahlung.Klasse]
+
+		auszahlungsstatistiken = append(auszahlungsstatistiken, auszahlungsstatistik)
+	}
+
+	return auszahlungsstatistiken, fehler
+
+}
+
+func ErstelleZiehungsstatistiken(ziehungen []database.Ziehung) ([]Ziehungsstatistik, error) {
+
+	var ziehungsstatistiken []Ziehungsstatistik
+	var ziehungsstatistik Ziehungsstatistik
+	var auszahlungsstatistiken []Auszahlungsstatistik
+	var fehler error
+
+	ziehungsstatistiken = make([]Ziehungsstatistik, 0)
+
+	for _, ziehung := range ziehungen {
+
+		if ziehung.Ziehung.Ptr() != nil {
+			auszahlungsstatistiken, fehler = ErstelleAuszahlungsstatistiken(ziehung)
 		}
-		ist_verfuegbar = (anzahl_vorkommen == 0)
+
+		if fehler != nil {
+			return ziehungsstatistiken, fehler
+		} else {
+			ziehungsstatistik.Datum = ziehung.Datum
+			ziehungsstatistik.Ziehung = ziehung.Ziehung
+			ziehungsstatistik.Auszahlungen = auszahlungsstatistiken
+			ziehungsstatistiken = append(ziehungsstatistiken, ziehungsstatistik)
+		}
+
 	}
 
-	if !ist_verfuegbar {
-		belegtError = errors.New("Name " + benutzername + " vergeben")
+	return ziehungsstatistiken, fehler
+}
+
+func ErstelleZiehungsstatistikenFuerZeitraum(startdatum time.Time, enddatum time.Time) ([]Ziehungsstatistik, error) {
+
+	var ziehungsstatistiken []Ziehungsstatistik
+	var ziehungen []database.Ziehung
+	var fehler error
+
+	ziehungen, fehler = database.HoleZiehungenInnerhalbEinesZeitraums(startdatum, enddatum)
+
+	if fehler != nil {
+		return ziehungsstatistiken, fehler
+	} else {
+		ziehungsstatistiken, fehler = ErstelleZiehungsstatistiken(ziehungen)
 	}
 
-	return belegtError
+	return ziehungsstatistiken, fehler
+}
+
+func ErstelleTippauszahlungen(tipps []database.Tipp) ([]Tippauszahlung, error) {
+
+	var tippauszahlungen []Tippauszahlung
+	var tippauszahlung Tippauszahlung
+	var ziehung database.Ziehung
+	var auszahlung database.Auszahlung
+	var fehler error
+
+	tippauszahlungen = make([]Tippauszahlung, 0)
+
+	for _, tipp := range tipps {
+
+		tippauszahlung.Id = tipp.Id
+		tippauszahlung.Datum = tipp.Datum
+		tippauszahlung.Ziehung = tipp.Ziehung
+
+		ziehung, fehler = database.HoleZiehungZumDatum(tipp.Datum)
+		if fehler != nil {
+			lottolog.FehlerLogger.Println(fehler)
+			break
+		} else {
+			tippauszahlung.Klasse = BerechneGewinnklasse(tipp.Ziehung, ziehung.Ziehung.String)
+		}
+
+		auszahlung.Auszahlung = 0.0
+
+		if tippauszahlung.Klasse >= 0 {
+			auszahlung, fehler = database.HoleAuszahlungZuDatumUndKlasse(tipp.Datum, tippauszahlung.Klasse)
+		}
+		if fehler != nil {
+			lottolog.FehlerLogger.Println(fehler)
+			break
+		} else {
+			tippauszahlung.Auszahlung = auszahlung.Auszahlung
+			tippauszahlungen = append(tippauszahlungen, tippauszahlung)
+		}
+
+	}
+
+	return tippauszahlungen, fehler
+}
+
+func ErstelleTippauszahlungenFuerSpieler(spielername string, startdatum time.Time, enddatum time.Time) ([]Tippauszahlung, error) {
+
+	var tippauszahlungen []Tippauszahlung
+	var tipps []database.Tipp
+	var fehler error
+
+	tipps, fehler = database.HoleTippsVonSpielerImZeitraum(spielername, startdatum, enddatum)
+
+	if fehler != nil {
+		lottolog.FehlerLogger.Println(fehler)
+		return nil, fehler
+	}
+
+	tippauszahlungen, fehler = ErstelleTippauszahlungen(tipps)
+
+	return tippauszahlungen, fehler
+
+}
+
+func SchliesseZiehung(ziehung database.Ziehung, mitarbeiter database.Nutzer) error {
+
+	var updateFehler error
+	var ziehungTransaktion *sql.Tx
+	var auszahlungen []database.Auszahlung
+
+	if !IstValideZiehung(ziehung.Ziehung.String) {
+		updateFehler = errors.New(ziehung.Ziehung.String + " ist keine gültige Ziehung")
+		return updateFehler
+	}
+
+	if !IstSchliessbaresZiehungsdatum(ziehung.Datum) {
+		updateFehler = errors.New(ziehung.Datum.Format("2006-01-02") + " ist kein Datum einer abschliessbaren Ziehung")
+		return updateFehler
+	}
+
+	lottolog.InfoLogger.Println("Transaktion zur Schliessung einer Ziehung beginnt")
+	ziehungTransaktion, updateFehler = database.HoleVerbindung().Begin()
+
+	if updateFehler == nil {
+		updateFehler = database.AendereZiehung(ziehung, ziehungTransaktion)
+	}
+
+	if updateFehler == nil {
+		updateFehler = database.FuegeMitarbeiterZiehungVerknuepfungEin(ziehung.Datum, mitarbeiter.Benutzername, true, ziehungTransaktion)
+	}
+
+	if updateFehler == nil {
+		auszahlungen, updateFehler = BerechneAuszahlungen(ziehungTransaktion, ziehung.Datum)
+	}
+
+	if updateFehler == nil {
+		for _, auszahlung := range auszahlungen {
+			updateFehler = database.FuegeAuszahlungEin(ziehungTransaktion, auszahlung)
+			if updateFehler != nil {
+				break
+			}
+		}
+	}
+
+	if updateFehler != nil {
+		lottolog.FehlerLogger.Println(updateFehler.Error())
+		lottolog.WarnungLogger.Println("Transaktion zur Schliessung einer Ziehung abgebrochen")
+		ziehungTransaktion.Rollback()
+	} else {
+		lottolog.InfoLogger.Println("Transaktion zur Schliessung einer Ziehung erfolgt")
+		ziehungTransaktion.Commit()
+	}
+
+	return updateFehler
+
+}
+
+func FuegeSpielerNachPruefungEin(nutzer database.Nutzer, passwort string) error {
+
+	var hash string
+
+	ist_verfuegbar, fehler := database.HoleVerfuegbarkeitEinesBenutzernamens(nutzer.Benutzername)
+
+	if fehler == nil {
+		hash, fehler = HashePasswort(passwort)
+	}
+
+	if fehler == nil {
+		if ist_verfuegbar {
+			nutzer.Pw_hash = hash
+			fehler = database.FuegeNutzerEin(nutzer)
+		} else {
+			fehler = errors.New("Name " + nutzer.Benutzername + " bereits vergeben")
+		}
+	}
+
+	return fehler
+}
+
+func FuegeMitarbeiterNachPruefungEin(benutzername string, passwort string) error {
+
+	var hash string
+	var mitarbeiter database.Nutzer
+
+	ist_verfuegbar, fehler := database.HoleVerfuegbarkeitEinesBenutzernamens(benutzername)
+
+	if fehler == nil {
+		if ist_verfuegbar {
+			hash, fehler = HashePasswort(passwort)
+		} else {
+			fehler = errors.New("Name " + benutzername + " bereits vergeben")
+		}
+	} else {
+		return fehler
+	}
+
+	if fehler != nil {
+		return fehler
+	} else {
+		mitarbeiter = database.Nutzer{
+			Benutzername: benutzername,
+			Pw_hash:      hash,
+			Ist_spieler:  false,
+		}
+		fehler = database.FuegeNutzerEin(mitarbeiter)
+	}
+
+	return fehler
+}
+
+func FuegeTippNachPruefungEin(tipp database.Tipp, spieler database.Nutzer) error {
+
+	var fehler error
+	var tippTransaktion *sql.Tx
+
+	if !IstValideZiehung(tipp.Ziehung) {
+		fehler = errors.New("Kein gueltiger Lottotipp: " + tipp.Ziehung)
+		return fehler
+	}
+
+	if !IstOffenesZiehungsdatum(tipp.Datum) {
+		fehler = errors.New("Kein gueltiges Tippdatum: " + tipp.Datum.Format("2006-01-02"))
+		return fehler
+	}
+
+	tipp.Id, fehler = database.HoleGroessteTippID()
+
+	if fehler != nil {
+		return fehler
+	} else {
+		tipp.Id += 1
+	}
+
+	lottolog.InfoLogger.Println("Transaktion zur Abgabe eines Tipps beginnt")
+	tippTransaktion, fehler = database.HoleVerbindung().Begin()
+
+	if fehler == nil {
+		fehler = database.FuegeTippEin(tipp, tippTransaktion)
+	}
+
+	if fehler != nil {
+		lottolog.FehlerLogger.Println(fehler.Error())
+		lottolog.WarnungLogger.Println("Transaktion zur Abgabe eines Tipps abgebrochen")
+		tippTransaktion.Rollback()
+	} else {
+		fehler = database.FuegeSpielerTippVerknuepfungEin(tipp.Id, spieler.Benutzername, tippTransaktion)
+	}
+
+	if fehler != nil {
+		lottolog.FehlerLogger.Println(fehler.Error())
+		lottolog.WarnungLogger.Println("Transaktion zur Abgabe eines Tipps abgebrochen")
+		tippTransaktion.Rollback()
+	} else {
+		lottolog.InfoLogger.Println("Transaktion zur Abgabe eines Tipps erfolgt")
+		tippTransaktion.Commit()
+	}
+
+	return fehler
+
+}
+
+func EroeffneZiehung(ziehung database.Ziehung, mitarbeiter database.Nutzer) error {
+
+	var fehler error
+
+	if !IstGueltigesZiehungsdatum(ziehung.Datum) {
+		fehler = errors.New("Kein gültiges Ziehungsdatum: " + ziehung.Datum.Format("2006-01-02"))
+		return fehler
+	}
+
+	lottolog.InfoLogger.Println("Transaktion zum Eroeffnen einer Ziehung beginnt")
+	ziehungTransaktion, fehler := database.HoleVerbindung().Begin()
+
+	if fehler == nil {
+		fehler = database.FuegeZiehungEin(ziehung, ziehungTransaktion)
+	}
+
+	if fehler != nil {
+		lottolog.FehlerLogger.Println(fehler.Error())
+		lottolog.WarnungLogger.Println("Transaktion zum Eroeffnen einer Ziehung abgebrochen")
+		ziehungTransaktion.Rollback()
+	} else {
+		fehler = database.FuegeMitarbeiterZiehungVerknuepfungEin(ziehung.Datum, mitarbeiter.Benutzername, false, ziehungTransaktion)
+	}
+
+	if fehler != nil {
+		lottolog.FehlerLogger.Println(fehler.Error())
+		lottolog.WarnungLogger.Println("Transaktion zum Eroeffnen einer Ziehung abgebrochen")
+		ziehungTransaktion.Rollback()
+	} else {
+		lottolog.InfoLogger.Println("Transaktion erfolgt")
+		ziehungTransaktion.Commit()
+	}
+
+	return fehler
+
+}
+
+func AendereSpielerdatenNachPruefung(alterBenutzername string, neuerBenutzername string, neuesPasswort string) error {
+
+	var fehler error
+	var neuerHash string
+
+	if alterBenutzername != neuerBenutzername {
+		ist_verfuegbar, fehler := database.HoleVerfuegbarkeitEinesBenutzernamens(neuerBenutzername)
+		if fehler == nil && !ist_verfuegbar {
+			fehler = errors.New("Name " + neuerBenutzername + " bereits vergeben")
+		}
+	}
+
+	if fehler == nil {
+		neuerHash, fehler = HashePasswort(neuesPasswort)
+	}
+
+	if fehler == nil {
+		neueNutzerdaten := database.Nutzer{
+			Benutzername: neuerBenutzername,
+			Pw_hash:      neuerHash,
+		}
+		fehler = database.AendereNutzerdaten(neueNutzerdaten, alterBenutzername)
+	}
+
+	return fehler
+
 }
 
 func ErzeugeZufallsziehung() string {
 
 	var ziehung string
+	var zufallszahl int
+	var ziehungszahlen []int
 
 	ziehung = ""
 
 	rand.Seed(time.Now().UnixNano())
-
-	var zufallszahl int
-	var ziehungszahlen []int
 
 	ziehungszahlen = []int{}
 
@@ -108,9 +419,11 @@ func ErzeugeZufallsziehung() string {
 		}
 
 		if zufallszahl < 10 {
-			ziehung = ziehung + "0"
+			ziehung = ziehung + "0" + strconv.Itoa(zufallszahl)
+		} else {
+			ziehung = ziehung + strconv.Itoa(zufallszahl)
 		}
-		ziehung = ziehung + strconv.Itoa(zufallszahl)
+
 		ziehungszahlen = append(ziehungszahlen, zufallszahl)
 	}
 
@@ -124,10 +437,16 @@ func ErzeugeZufallsziehung() string {
 func IstValideZiehung(ziehung string) bool {
 
 	var valid bool
+	var fehler error
 
-	valid, _ = regexp.MatchString("(0[1-9]|[1-4][0-9]){6}[0-9]", ziehung)
+	valid, fehler = regexp.MatchString("(0[1-9]|[1-4][0-9]){6}[0-9]", ziehung)
 
 	valid = valid && (len(ziehung) == 13)
+
+	if fehler != nil {
+		lottolog.WarnungLogger.Println(fehler.Error())
+		valid = false
+	}
 
 	if valid {
 
@@ -155,61 +474,57 @@ func IstValideZiehung(ziehung string) bool {
 
 }
 
-func IstValidesZiehungsdatum(databasehandle *sql.DB, ziehungsdatum time.Time) bool {
+func IstGueltigesZiehungsdatum(ziehungsdatum time.Time) bool {
 
-	var valid bool
-
-	valid = false
-
+	var gueltig bool
 	var letzteZiehung time.Time
 
-	query := "SELECT MAX(datum) as letzteZiehung FROM ziehungen WHERE ziehung IS NOT NULL"
-	fmt.Println(query)
+	gueltig = false
 
-	rows, err := databasehandle.Query(query)
-	fmt.Println(query)
+	letzteZiehung, fehler := database.HoleLetztesZiehungsdatum()
 
-	if err != nil {
-		log.Println(err)
-		return false
+	if fehler != nil {
+		lottolog.WarnungLogger.Println(fehler.Error())
+		gueltig = false
 	} else {
-		for rows.Next() {
-			rows.Scan(&letzteZiehung)
-			fmt.Printf("letzte Ziehung am %s\n", letzteZiehung.Format("2006-01-02"))
-		}
+		gueltig = ziehungsdatum.After(letzteZiehung.AddDate(0, 0, 1)) && ziehungsdatum.After(time.Now())
 	}
 
-	valid = ziehungsdatum.Truncate(24 * time.Hour).After(letzteZiehung.Truncate(24 * time.Hour))
-
-	return valid
+	return gueltig
 
 }
 
-func IstOffenesZiehungsdatum(databasehandle *sql.DB, tippdatum time.Time) bool {
+func IstOffenesZiehungsdatum(tippdatum time.Time) bool {
 
-	var valid bool
+	offen, fehler := database.HoleVerfuegbarkeitEinerZiehungZumDatum(tippdatum)
 
-	valid = false
-
-	var anzahl int
-
-	query := "SELECT COUNT(*) as anzahl FROM ziehungen WHERE datum = '" + tippdatum.Format("2006-01-02") + "' AND ziehung IS NULL"
-	fmt.Println(query)
-
-	rows, err := databasehandle.Query(query)
-
-	if err != nil {
-		log.Println(err)
-		return false
-	} else {
-		for rows.Next() {
-			rows.Scan(&anzahl)
-		}
+	if fehler != nil {
+		lottolog.WarnungLogger.Println(fehler.Error())
+		offen = false
 	}
 
-	valid = anzahl > 0
+	if offen {
+		offen = tippdatum.After(time.Now())
+	}
 
-	return valid
+	return offen
+
+}
+
+func IstSchliessbaresZiehungsdatum(tippdatum time.Time) bool {
+
+	offen, fehler := database.HoleVerfuegbarkeitEinerZiehungZumDatum(tippdatum)
+
+	if fehler != nil {
+		lottolog.WarnungLogger.Println(fehler.Error())
+		offen = false
+	}
+
+	if offen {
+		offen = tippdatum.Before(time.Now())
+	}
+
+	return offen
 
 }
 
@@ -222,95 +537,89 @@ func IstZahlInSlice(slice []int, gesucht int) bool {
 	return false
 }
 
-func BerechneAuszahlungen(transaktion *sql.Tx, datum time.Time) ([]Auszahlung, error) {
+func BerechneAuszahlungen(ziehungTransaktion *sql.Tx, ziehungsdatum time.Time) ([]database.Auszahlung, error) {
 
-	var auszahlungen []Auszahlung
-	var gesamteinsatz float64
-	var gesamttipps int
+	var auszahlungen []database.Auszahlung
+	var einsatz float64
+	var tippanzahl int
+	var fehler error
 
-	einsatz := 5.0
+	lospreis := 5.0
 
-	query := "SELECT COUNT(*) as anzahl FROM tipps WHERE datum = '" + datum.Format("2006-01-02") + "'"
+	tippanzahl, fehler = database.HoleTippanzahlZumDatum(ziehungsdatum, ziehungTransaktion)
 
-	rows, err := transaktion.Query(query)
-	fmt.Println(query)
-
-	if err != nil {
-		log.Println(err)
-	} else {
-		for rows.Next() {
-			rows.Scan(&gesamttipps)
-			fmt.Printf("Abgegebene Tipps: %d\n", gesamttipps)
-		}
+	if fehler != nil {
+		return auszahlungen, fehler
 	}
 
-	gesamteinsatz = float64(gesamttipps) * einsatz
+	einsatz = float64(tippanzahl) * lospreis
 
-	var gewinnanzahl [10]int
+	var gewinneranzahl [10]int
 
-	gewinnanzahl = BerechneGewinneranzahl(transaktion, datum)
+	gewinneranzahl, fehler = BerechneGewinneranzahl(ziehungsdatum)
 
-	fmt.Printf("Startbudget: %.2f\n", gesamteinsatz)
+	if fehler != nil {
+		return auszahlungen, fehler
+	}
 
-	zweirichtige := Auszahlung{
-		Datum:      datum,
+	zweirichtige := database.Auszahlung{
+		Datum:      ziehungsdatum,
 		Klasse:     0,
 		Auszahlung: 2.0,
 	}
 
-	zweirichtige.Budget = zweirichtige.Auszahlung * float64(gewinnanzahl[zweirichtige.Klasse])
+	zweirichtige.Budget = zweirichtige.Auszahlung * float64(gewinneranzahl[zweirichtige.Klasse])
 	auszahlungen = append(auszahlungen, zweirichtige)
-	gesamteinsatz = gesamteinsatz - zweirichtige.Budget
+	einsatz = einsatz - zweirichtige.Budget
 
-	fmt.Printf("Budget nach Abzug vom Budget für 2 Richtige: %.2f\n", gesamteinsatz)
-
-	zweirichtigesuper := Auszahlung{
-		Datum:      datum,
+	zweirichtigesuper := database.Auszahlung{
+		Datum:      ziehungsdatum,
 		Klasse:     1,
 		Auszahlung: 5.0,
 	}
 
-	zweirichtigesuper.Budget = zweirichtigesuper.Auszahlung * float64(gewinnanzahl[zweirichtigesuper.Klasse])
+	zweirichtigesuper.Budget = zweirichtigesuper.Auszahlung * float64(gewinneranzahl[zweirichtigesuper.Klasse])
 	auszahlungen = append(auszahlungen, zweirichtigesuper)
-	gesamteinsatz = gesamteinsatz - zweirichtigesuper.Budget
+	einsatz = einsatz - zweirichtigesuper.Budget
 
-	fmt.Printf("Budget nach Abzug vom Budget für 2 Richtige mit Superzahl: %.2f\n", gesamteinsatz)
+	sechsrichtigesuper := BerechneAuszahlung(einsatz, gewinneranzahl, 0.128, ziehungsdatum, 9)
+	einsatz = einsatz - sechsrichtigesuper.Budget
 
-	sechsrichtigesuper := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.128, datum, 9)
-	gesamteinsatz = gesamteinsatz - sechsrichtigesuper.Budget
-	sechsrichtigesuper = BerechneJackpot(transaktion, sechsrichtigesuper)
+	sechsrichtigesuper, fehler = BerechneJackpotsteigerung(ziehungTransaktion, sechsrichtigesuper)
 	auszahlungen = append(auszahlungen, sechsrichtigesuper)
 
-	fmt.Printf("Budget nach Abzug vom Budget für 6 Richtige mit Superzahl: %.2f\n", gesamteinsatz)
+	if fehler != nil {
+		return auszahlungen, fehler
+	}
 
-	sechsrichtige := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.1, datum, 8)
+	sechsrichtige := BerechneAuszahlung(einsatz, gewinneranzahl, 0.1, ziehungsdatum, 8)
 	auszahlungen = append(auszahlungen, sechsrichtige)
 
-	fuenfrichtige := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.15, datum, 6)
+	fuenfrichtige := BerechneAuszahlung(einsatz, gewinneranzahl, 0.15, ziehungsdatum, 6)
 	auszahlungen = append(auszahlungen, fuenfrichtige)
 
-	fuenfrichtigesuper := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.05, datum, 7)
+	fuenfrichtigesuper := BerechneAuszahlung(einsatz, gewinneranzahl, 0.05, ziehungsdatum, 7)
 	auszahlungen = append(auszahlungen, fuenfrichtigesuper)
 
-	vierrichtige := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.1, datum, 4)
+	vierrichtige := BerechneAuszahlung(einsatz, gewinneranzahl, 0.1, ziehungsdatum, 4)
 	auszahlungen = append(auszahlungen, vierrichtige)
 
-	vierrichtigesuper := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.05, datum, 5)
+	vierrichtigesuper := BerechneAuszahlung(einsatz, gewinneranzahl, 0.05, ziehungsdatum, 5)
 	auszahlungen = append(auszahlungen, vierrichtigesuper)
 
-	dreirichtige := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.45, datum, 2)
+	dreirichtige := BerechneAuszahlung(einsatz, gewinneranzahl, 0.45, ziehungsdatum, 2)
 	auszahlungen = append(auszahlungen, dreirichtige)
 
-	dreirichtigesuper := BerechneAuszahlung(gesamteinsatz, gewinnanzahl, 0.1, datum, 3)
+	dreirichtigesuper := BerechneAuszahlung(einsatz, gewinneranzahl, 0.1, ziehungsdatum, 3)
 	auszahlungen = append(auszahlungen, dreirichtigesuper)
 
 	return auszahlungen, nil
 
 }
 
-func BerechneAuszahlung(gesamteinsatz float64, gewinnanzahl [10]int, budgetfaktor float64, auszahlungsdatum time.Time, gewinnklasse int8) Auszahlung {
+func BerechneAuszahlung(gesamteinsatz float64, gewinnanzahl [10]int, budgetfaktor float64, auszahlungsdatum time.Time, gewinnklasse int8) database.Auszahlung {
 
-	auszahlung := Auszahlung{
+	auszahlung := database.Auszahlung{
 		Datum:  auszahlungsdatum,
 		Klasse: gewinnklasse,
 	}
@@ -328,87 +637,49 @@ func BerechneAuszahlung(gesamteinsatz float64, gewinnanzahl [10]int, budgetfakto
 	return auszahlung
 }
 
-func BerechneJackpot(transaktion *sql.Tx, jackpotAuszahlung Auszahlung) Auszahlung {
+func BerechneJackpotsteigerung(ziehungsTransaktion *sql.Tx, jackpotAuszahlung database.Auszahlung) (database.Auszahlung, error) {
 
-	var jackpot float64
-	var auszahlung float64
+	letzterJackpot, fehler := database.HoleLetztenJackpot(ziehungsTransaktion)
 
-	// Betrachte Jackpotauszahlung der letzten Ziehung
-	query := "SELECT budget, auszahlung FROM auszahlungen WHERE klasse = 9 AND datum = (SELECT MAX(datum) FROM auszahlungen)"
-	fmt.Println(query)
-
-	rows, err := transaktion.Query(query)
-	fmt.Println(query)
-
-	if err != nil {
-		log.Println(err)
-	} else {
-		for rows.Next() {
-			rows.Scan(&jackpot, &auszahlung)
-			fmt.Printf("unausgezahlte Jackpotsumme : %.2f\n", jackpot)
-		}
+	if letzterJackpot.Auszahlung == 0 {
+		jackpotAuszahlung.Budget = jackpotAuszahlung.Budget + letzterJackpot.Budget
 	}
 
-	if auszahlung == 0 {
-		jackpotAuszahlung.Budget = jackpotAuszahlung.Budget + jackpot
-	}
-
-	return jackpotAuszahlung
+	return jackpotAuszahlung, fehler
 
 }
 
-func BerechneGewinneranzahl(transaktion *sql.Tx, datum time.Time) [10]int {
+func BerechneGewinneranzahl(ziehungsdatum time.Time) ([10]int, error) {
 
-	var gewinnanzahl [10]int
-
-	var ziehung string
-
-	var tipp string
+	var gewinneranzahl [10]int
+	var ziehung database.Ziehung
+	var fehler error
+	var tipps []database.Tipp
 
 	for klasse := 0; klasse <= 9; klasse++ {
-
-		gewinnanzahl[klasse] = 0
-
+		gewinneranzahl[klasse] = 0
 	}
 
-	query := "SELECT ziehung FROM ziehungen WHERE datum = '" + datum.Format("2006-01-02") + "'"
+	ziehung, fehler = database.HoleZiehungZumDatum(ziehungsdatum)
 
-	ziehungsdaten, err := transaktion.Query(query)
-	fmt.Println(query)
+	if fehler != nil {
+		return gewinneranzahl, fehler
+	}
 
-	if err != nil {
-		log.Println(err)
-	} else {
-		for ziehungsdaten.Next() {
-			ziehungsdaten.Scan(&ziehung)
+	tipps, fehler = database.HoleTippsZumDatum(ziehungsdatum)
+
+	if fehler != nil {
+		return gewinneranzahl, fehler
+	}
+
+	for _, tipp := range tipps {
+		gewinnklasse := BerechneGewinnklasse(tipp.Ziehung, ziehung.Ziehung.String)
+		if gewinnklasse >= 0 {
+			gewinneranzahl[gewinnklasse]++
 		}
 	}
 
-	query = "SELECT ziehung FROM tipps WHERE datum = '" + datum.Format("2006-01-02") + "'"
-
-	tippdaten, err := transaktion.Query(query)
-	fmt.Println(query)
-
-	if err != nil {
-		log.Println(err)
-	} else {
-		for tippdaten.Next() {
-			tippdaten.Scan(&tipp)
-			gewinnklasse := BerechneGewinnklasse(tipp, ziehung)
-			fmt.Printf("Tipp %s erzielt Gewinnklasse %d bei Ziehung %s\n", tipp, gewinnklasse, ziehung)
-			if gewinnklasse >= 0 {
-				gewinnanzahl[gewinnklasse]++
-			}
-		}
-	}
-
-	for klasse := 0; klasse <= 9; klasse++ {
-
-		fmt.Printf("Gewinner in Klasse %d: %d\n", klasse, gewinnanzahl[klasse])
-
-	}
-
-	return gewinnanzahl
+	return gewinneranzahl, fehler
 
 }
 
@@ -442,12 +713,12 @@ func BerechneGewinnklasse(tipp string, ziehung string) int8 {
 
 }
 
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
+func HashePasswort(passwort string) (string, error) {
+	bytes, fehler := bcrypt.GenerateFromPassword([]byte(passwort), 14)
+	return string(bytes), fehler
 }
 
-func CheckPasswordHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
+func PruefePasswortHash(passwort, hash string) bool {
+	fehler := bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwort))
+	return fehler == nil
 }

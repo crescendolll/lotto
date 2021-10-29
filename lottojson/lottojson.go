@@ -35,5 +35,5 @@ type GetTippsResponse struct {
 
 type GetZiehungenMitAuszahlungenResponse struct {
 	Errormessage         string                         `json:"errormessage"`
-	Ziehungsauszahlungen []lottologic.Ziehungauszahlung `json:"statistik"`
+	Ziehungsauszahlungen []lottologic.Ziehungsstatistik `json:"statistik"`
 }

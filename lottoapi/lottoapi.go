@@ -1,9 +1,9 @@
 package lottoapi
 
 import (
-	"fmt"
 	"lotto/database"
 	"lotto/lottojson"
+	"lotto/lottolog"
 	"lotto/lottologic"
 	"time"
 
@@ -11,36 +11,35 @@ import (
 	"github.com/segmentio/ksuid"
 )
 
-var aktiveNutzer map[string]lottologic.Nutzer
+var aktiveNutzer map[string]database.Nutzer
 
-// Ausgabe ist interface{} - beliebig, weil jede Response erzeugt werden kann
-func HandleRequest(apirequest lottojson.LottoRequest) interface{} {
+func BearbeiteRequest(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
 
-	switch apirequest.Methode {
+	switch request.Methode {
 	case "login":
-		response = CreateLoginResponse(apirequest)
+		response = ErstelleResponseAufLogin(request)
 	case "logout":
-		response = CreateLogoutResponse(apirequest)
+		response = ErstelleResponseAufLogout(request)
 	case "registriere":
-		response = CreateRegistrationResponse(apirequest)
+		response = ErstelleResponseAufRegistrierung(request)
 	case "aendereKontodaten":
-		response = CreateUpdateResponse(apirequest)
+		response = ErstelleResponseAufKontoaenderung(request)
 	case "loescheKontodaten":
-		response = CreateDeleteResponse(apirequest)
+		response = ErstelleResponseAufKontoloeschung(request)
 	case "neuerTipp":
-		response = CreateTippResponse(apirequest)
+		response = ErstelleResponseAufTippabgabe(request)
 	case "neueZiehung":
-		response = CreateNewGameResponse(apirequest)
+		response = ErstelleResponseAufZiehungseroeffnung(request)
 	case "beendeZiehung":
-		response = CreateCloseGameResponse(apirequest)
+		response = ErstelleResponseAufZiehungsschliessung(request)
 	case "zeigeAktuelleSpiele":
-		response = CreateCurrentGameResponse(apirequest)
+		response = ErstelleResponseAufAnfrageNachLaufendenZiehungen(request)
 	case "zeigeTipps":
-		response = CreateCurrentTippsResponse(apirequest)
+		response = ErstelleResponseAufAnfrageNachAbgegebenenTipps(request)
 	case "holeZiehungen":
-		response = CreateGetZiehungMitAuszahlungResponse(apirequest)
+		response = ErstelleResponseAufAnfrageNachGespieltenZiehungen(request)
 	default:
 		response = lottojson.ErrorResponse{
 			Errormessage: "Unbekannte Methode",
@@ -51,45 +50,43 @@ func HandleRequest(apirequest lottojson.LottoRequest) interface{} {
 
 }
 
-func CreateGetZiehungMitAuszahlungResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufAnfrageNachGespieltenZiehungen(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var von time.Time
-	var bis time.Time
-	var err error
-	var ziehungsauszahlungen []lottologic.Ziehungauszahlung
+	var startdatum time.Time
+	var enddatum time.Time
+	var fehler error
+	var ziehungsauszahlungen []lottologic.Ziehungsstatistik
 
-	if apirequest.Param["bis"] == "" {
-		bis = time.Now()
+	if request.Param["bis"] == "" {
+		enddatum = time.Now()
 	} else {
-		bis, err = time.Parse("2006-01-02", apirequest.Param["bis"])
+		enddatum, fehler = time.Parse("2006-01-02", request.Param["bis"])
 	}
 
-	if err != nil {
+	if fehler != nil {
 		response = lottojson.ErrorResponse{
-			Errormessage: err.Error(),
+			Errormessage: fehler.Error(),
 		}
 		return response
 	}
 
-	if apirequest.Param["von"] != "" {
-		von, err = time.Parse("2006-01-02", apirequest.Param["von"])
+	if request.Param["von"] != "" {
+		startdatum, fehler = time.Parse("2006-01-02", request.Param["von"])
 	}
 
-	if err != nil {
+	if fehler != nil {
 		response = lottojson.ErrorResponse{
-			Errormessage: err.Error(),
+			Errormessage: fehler.Error(),
 		}
 		return response
 	}
 
-	databasehandle := database.OpenLottoConnection()
-	ziehungsauszahlungen, err = database.HoleZiehungenMitAuszahlungen(databasehandle, von, bis)
-	database.CloseLottoConnection(databasehandle)
+	ziehungsauszahlungen, fehler = lottologic.ErstelleZiehungsstatistikenFuerZeitraum(startdatum, enddatum)
 
-	if err != nil {
+	if fehler != nil {
 		response = lottojson.ErrorResponse{
-			Errormessage: err.Error(),
+			Errormessage: fehler.Error(),
 		}
 	} else {
 		response = lottojson.GetZiehungenMitAuszahlungenResponse{
@@ -101,55 +98,53 @@ func CreateGetZiehungMitAuszahlungResponse(apirequest lottojson.LottoRequest) in
 	return response
 }
 
-func CreateCurrentTippsResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufAnfrageNachAbgegebenenTipps(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var von time.Time
-	var bis time.Time
-	var nutzer lottologic.Nutzer
-	var err error
+	var startdatum time.Time
+	var enddatum time.Time
+	var nutzer database.Nutzer
+	var fehler error
 	var tippauszahlungen []lottologic.Tippauszahlung
 
-	if !ValidateAuth(apirequest.Auth) {
+	if !ValidiereAuthToken(request.Auth) {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Unauthorisierter Zugriff",
 		}
 		return response
 	}
 
-	if apirequest.Param["bis"] == "" {
-		bis = time.Now()
+	if request.Param["bis"] == "" {
+		enddatum = time.Now()
 	} else {
-		bis, err = time.Parse("2006-01-02", apirequest.Param["bis"])
+		enddatum, fehler = time.Parse("2006-01-02", request.Param["bis"])
 	}
 
-	if err != nil {
+	if fehler != nil {
 		response = lottojson.ErrorResponse{
-			Errormessage: err.Error(),
+			Errormessage: fehler.Error(),
 		}
 		return response
 	}
 
-	if apirequest.Param["von"] != "" {
-		von, err = time.Parse("2006-01-02", apirequest.Param["von"])
+	if request.Param["von"] != "" {
+		startdatum, fehler = time.Parse("2006-01-02", request.Param["von"])
 	}
 
-	if err != nil {
+	if fehler != nil {
 		response = lottojson.ErrorResponse{
-			Errormessage: err.Error(),
+			Errormessage: fehler.Error(),
 		}
 		return response
 	}
 
-	nutzer = aktiveNutzer[apirequest.Auth]
+	nutzer = aktiveNutzer[request.Auth]
 
-	databasehandle := database.OpenLottoConnection()
-	tippauszahlungen, err = database.HoleTippauszahlungenFuerSpieler(databasehandle, nutzer.Benutzername, von, bis)
-	database.CloseLottoConnection(databasehandle)
+	tippauszahlungen, fehler = lottologic.ErstelleTippauszahlungenFuerSpieler(nutzer.Benutzername, startdatum, enddatum)
 
-	if err != nil {
+	if fehler != nil {
 		response = lottojson.ErrorResponse{
-			Errormessage: err.Error(),
+			Errormessage: fehler.Error(),
 		}
 	} else {
 		response = lottojson.GetTippsResponse{
@@ -158,54 +153,48 @@ func CreateCurrentTippsResponse(apirequest lottojson.LottoRequest) interface{} {
 		}
 	}
 
-	for _, tippausz := range tippauszahlungen {
-		fmt.Printf("| %d | %s | %s | %d | %.2f\n", tippausz.Id, tippausz.Datum.Format("2006-01-02"), tippausz.Ziehung, tippausz.Klasse, tippausz.Auszahlung)
-	}
-
 	return response
 }
 
-func CreateCloseGameResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufZiehungsschliessung(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var mitarbeiter lottologic.Nutzer
-	var ziehung lottologic.Ziehung
+	var mitarbeiter database.Nutzer
+	var ziehung database.Ziehung
 
-	if !ValidateAuth(apirequest.Auth) {
+	if !ValidiereAuthToken(request.Auth) {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Unauthorisierter Zugriff",
 		}
 		return response
 	}
 
-	if apirequest.Param["datum"] == "" || apirequest.Param["ziehung"] == "" {
+	if request.Param["datum"] == "" || request.Param["ziehung"] == "" {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Datum und Ziehung angeben",
 		}
 		return response
 	} else {
 
-		var timeErr error
+		var parserFehler error
 
-		ziehung.Datum, timeErr = time.Parse("2006-01-02", apirequest.Param["datum"])
-		ziehung.Ziehung = null.StringFrom(apirequest.Param["ziehung"])
+		ziehung.Datum, parserFehler = time.Parse("2006-01-02", request.Param["datum"])
+		ziehung.Ziehung = null.StringFrom(request.Param["ziehung"])
 
-		if timeErr != nil {
+		if parserFehler != nil {
 			response = lottojson.ErrorResponse{
-				Errormessage: timeErr.Error(),
+				Errormessage: parserFehler.Error(),
 			}
 			return response
 		}
 
-		mitarbeiter = aktiveNutzer[apirequest.Auth]
+		mitarbeiter = aktiveNutzer[request.Auth]
 
-		databasehandle := database.OpenLottoConnection()
-		updateError := database.UpdateZiehungen(databasehandle, ziehung, mitarbeiter)
-		database.CloseLottoConnection(databasehandle)
+		updateFehler := lottologic.SchliesseZiehung(ziehung, mitarbeiter)
 
-		if updateError != nil {
+		if updateFehler != nil {
 			response = lottojson.ErrorResponse{
-				Errormessage: updateError.Error(),
+				Errormessage: updateFehler.Error(),
 			}
 		} else {
 			response = lottojson.ErrorResponse{
@@ -218,53 +207,49 @@ func CreateCloseGameResponse(apirequest lottojson.LottoRequest) interface{} {
 
 }
 
-func CreateCurrentGameResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufAnfrageNachLaufendenZiehungen(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var ziehungen []lottologic.Ziehung
-	var err error
-
-	databasehandle := database.OpenLottoConnection()
-	ziehungen, err = database.SelectLaufendeZiehungen(databasehandle)
-
+	var ziehungen []database.Ziehung
+	var fehler error
 	var ziehungstage []string
-	ziehungstage = make([]string, 0)
 
-	for _, ziehung := range ziehungen {
-		ziehungstage = append(ziehungstage, ziehung.Datum.Format("2006-01-02"))
-	}
+	ziehungen, fehler = database.HoleOffeneZiehungen()
 
-	if err != nil {
+	if fehler != nil {
 		response = lottojson.ErrorResponse{
-			Errormessage: err.Error(),
+			Errormessage: fehler.Error(),
 		}
 	} else {
+		ziehungstage = make([]string, 0)
+
+		for _, ziehung := range ziehungen {
+			ziehungstage = append(ziehungstage, ziehung.Datum.Format("2006-01-02"))
+		}
 		response = lottojson.GetZiehungenResponse{
 			Errormessage: "",
 			Ziehungen:    ziehungstage,
 		}
 	}
 
-	database.CloseLottoConnection(databasehandle)
-
 	return response
 
 }
 
-func CreateNewGameResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufZiehungseroeffnung(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var mitarbeiter lottologic.Nutzer
-	var neueZiehung lottologic.Ziehung
+	var mitarbeiter database.Nutzer
+	var neueZiehung database.Ziehung
 
-	if !ValidateAuth(apirequest.Auth) {
+	if !ValidiereAuthToken(request.Auth) {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Unauthorisierter Zugriff",
 		}
 		return response
 	}
 
-	if apirequest.Param["datum"] == "" {
+	if request.Param["datum"] == "" {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Datum der Ziehung angeben",
 		}
@@ -273,7 +258,7 @@ func CreateNewGameResponse(apirequest lottojson.LottoRequest) interface{} {
 
 		var timeErr error
 
-		neueZiehung.Datum, timeErr = time.Parse("2006-01-02", apirequest.Param["datum"])
+		neueZiehung.Datum, timeErr = time.Parse("2006-01-02", request.Param["datum"])
 
 		if timeErr != nil {
 			response = lottojson.ErrorResponse{
@@ -282,15 +267,13 @@ func CreateNewGameResponse(apirequest lottojson.LottoRequest) interface{} {
 			return response
 		}
 
-		mitarbeiter = aktiveNutzer[apirequest.Auth]
+		mitarbeiter = aktiveNutzer[request.Auth]
 
-		databasehandle := database.OpenLottoConnection()
-		insertError := database.InsertIntoZiehungen(databasehandle, neueZiehung, mitarbeiter)
-		database.CloseLottoConnection(databasehandle)
+		insertFehler := lottologic.EroeffneZiehung(neueZiehung, mitarbeiter)
 
-		if insertError != nil {
+		if insertFehler != nil {
 			response = lottojson.ErrorResponse{
-				Errormessage: insertError.Error(),
+				Errormessage: insertFehler.Error(),
 			}
 		} else {
 			response = lottojson.ErrorResponse{
@@ -303,46 +286,44 @@ func CreateNewGameResponse(apirequest lottojson.LottoRequest) interface{} {
 
 }
 
-func CreateTippResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufTippabgabe(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var neuerTipp lottologic.Tipp
-	var nutzer lottologic.Nutzer
+	var neuerTipp database.Tipp
+	var nutzer database.Nutzer
 
-	if !ValidateAuth(apirequest.Auth) {
+	if !ValidiereAuthToken(request.Auth) {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Unauthorisierter Zugriff",
 		}
 		return response
 	}
 
-	if apirequest.Param["tipp"] == "" || apirequest.Param["datum"] == "" {
+	if request.Param["tipp"] == "" || request.Param["datum"] == "" {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Datum und Tipp angeben",
 		}
 		return response
 	} else {
 
-		neuerTipp = lottologic.Tipp{
-			Ziehung: apirequest.Param["tipp"],
+		neuerTipp = database.Tipp{
+			Ziehung: request.Param["tipp"],
 		}
 
-		var timeErr error
+		var parserFehler error
 
-		neuerTipp.Datum, timeErr = time.Parse("2006-01-02", apirequest.Param["datum"])
+		neuerTipp.Datum, parserFehler = time.Parse("2006-01-02", request.Param["datum"])
 
-		if timeErr != nil {
+		if parserFehler != nil {
 			response = lottojson.ErrorResponse{
-				Errormessage: timeErr.Error(),
+				Errormessage: parserFehler.Error(),
 			}
 			return response
 		}
 
-		nutzer = aktiveNutzer[apirequest.Auth]
+		nutzer = aktiveNutzer[request.Auth]
 
-		databasehandle := database.OpenLottoConnection()
-		insertError := database.InsertIntoTipps(databasehandle, neuerTipp, nutzer)
-		database.CloseLottoConnection(databasehandle)
+		insertError := lottologic.FuegeTippNachPruefungEin(neuerTipp, nutzer)
 
 		if insertError != nil {
 			response = lottojson.ErrorResponse{
@@ -359,24 +340,24 @@ func CreateTippResponse(apirequest lottojson.LottoRequest) interface{} {
 
 }
 
-func CreateDeleteResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufKontoloeschung(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var deleteError error
+	var fehler error
 
-	if !ValidateAuth(apirequest.Auth) {
+	if !ValidiereAuthToken(request.Auth) {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Unauthorisierter Zugriff",
 		}
 	} else {
 
-		nutzer := aktiveNutzer[apirequest.Auth]
-		databasehandle := database.OpenLottoConnection()
-		deleteError = database.DeleteFromSpieler(databasehandle, nutzer.Benutzername)
-		database.CloseLottoConnection(databasehandle)
-		if deleteError != nil {
+		nutzer := aktiveNutzer[request.Auth]
+
+		fehler = database.LoescheNutzerdaten(nutzer.Benutzername)
+
+		if fehler != nil {
 			response = lottojson.ErrorResponse{
-				Errormessage: deleteError.Error(),
+				Errormessage: fehler.Error(),
 			}
 		} else {
 			response = lottojson.ErrorResponse{
@@ -390,29 +371,29 @@ func CreateDeleteResponse(apirequest lottojson.LottoRequest) interface{} {
 
 }
 
-func CreateUpdateResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufKontoaenderung(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var updateError error
+	var fehler error
 
-	if !ValidateAuth(apirequest.Auth) {
+	if !ValidiereAuthToken(request.Auth) {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Unauthorisierter Zugriff",
 		}
 	} else {
 
-		if apirequest.Param["neuespasswort"] == "" {
+		if request.Param["neuespasswort"] == "" {
 			response = lottojson.ErrorResponse{
 				Errormessage: "kein neues Passwort uebergeben",
 			}
 		} else {
-			nutzer := aktiveNutzer[apirequest.Auth]
-			databasehandle := database.OpenLottoConnection()
-			updateError = database.UpdateSpieler(databasehandle, nutzer.Benutzername, nutzer.Benutzername, apirequest.Param["neuespasswort"])
-			database.CloseLottoConnection(databasehandle)
-			if updateError != nil {
+
+			nutzer := aktiveNutzer[request.Auth]
+			fehler = lottologic.AendereSpielerdatenNachPruefung(nutzer.Benutzername, nutzer.Benutzername, request.Param["neuespasswort"])
+
+			if fehler != nil {
 				response = lottojson.ErrorResponse{
-					Errormessage: updateError.Error(),
+					Errormessage: fehler.Error(),
 				}
 			} else {
 				response = lottojson.ErrorResponse{
@@ -427,30 +408,27 @@ func CreateUpdateResponse(apirequest lottojson.LottoRequest) interface{} {
 
 }
 
-func CreateRegistrationResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufRegistrierung(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
-	var neuerNutzer lottologic.Nutzer
+	var neuerNutzer database.Nutzer
 
-	if apirequest.Param["name"] == "" || apirequest.Param["passwort"] == "" {
+	if request.Param["name"] == "" || request.Param["passwort"] == "" {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Name und Passwort sind nicht belegt",
 		}
 	} else {
 
-		neuerNutzer = lottologic.Nutzer{
-			Benutzername: apirequest.Param["name"],
-			Pw_hash:      apirequest.Param["passwort"],
+		neuerNutzer = database.Nutzer{
+			Benutzername: request.Param["name"],
 			Ist_spieler:  true,
 		}
 
-		databasehandle := database.OpenLottoConnection()
-		insertError := database.InsertSpielerIntoNutzer(databasehandle, neuerNutzer.Benutzername, neuerNutzer.Pw_hash)
-		database.CloseLottoConnection(databasehandle)
+		fehler := lottologic.FuegeSpielerNachPruefungEin(neuerNutzer, request.Param["passwort"])
 
-		if insertError != nil {
+		if fehler != nil {
 			response = lottojson.ErrorResponse{
-				Errormessage: insertError.Error(),
+				Errormessage: fehler.Error(),
 			}
 		} else {
 
@@ -462,36 +440,29 @@ func CreateRegistrationResponse(apirequest lottojson.LottoRequest) interface{} {
 		}
 	}
 
-	fmt.Println("Aktuelle Nutzer:")
-	for key, value := range aktiveNutzer {
-		fmt.Printf("Nutzer %s mit PW %s unter Token %s aktiv\n", value.Benutzername, value.Pw_hash, key)
-	}
-
 	return response
 
 }
 
-func CreateLoginResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufLogin(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
 
-	if apirequest.Param["name"] == "" || apirequest.Param["passwort"] == "" {
+	if request.Param["name"] == "" || request.Param["passwort"] == "" {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Name und Passwort sind nicht belegt",
 		}
 	} else {
 
-		databasehandle := database.OpenLottoConnection()
-		nutzer, err := database.SelectFromSpielerByName(databasehandle, apirequest.Param["name"])
-		database.CloseLottoConnection(databasehandle)
+		nutzer, fehler := database.HoleNutzerdatenZumNamen(request.Param["name"])
 
-		if err != nil {
+		if fehler != nil {
 			response = lottojson.ErrorResponse{
-				Errormessage: err.Error(),
+				Errormessage: fehler.Error(),
 			}
 		} else {
 
-			if !lottologic.CheckPasswordHash(apirequest.Param["passwort"], nutzer.Pw_hash) {
+			if !lottologic.PruefePasswortHash(request.Param["passwort"], nutzer.Pw_hash) {
 				response = lottojson.ErrorResponse{
 					Errormessage: "Passwort oder Benutzername sind nicht korrekt",
 				}
@@ -506,63 +477,58 @@ func CreateLoginResponse(apirequest lottojson.LottoRequest) interface{} {
 		}
 	}
 
-	fmt.Println("Aktuelle Nutzer:")
-	for key, value := range aktiveNutzer {
-		fmt.Printf("Nutzer %s mit PW %s unter Token %s aktiv\n", value.Benutzername, value.Pw_hash, key)
-	}
-
 	return response
 
 }
 
-func ValidateAuth(auth string) bool {
+func ValidiereAuthToken(authToken string) bool {
 
-	_, found := aktiveNutzer[auth]
+	_, gueltig := aktiveNutzer[authToken]
 
-	return found
+	return gueltig
 
 }
 
-func CreateLogoutResponse(apirequest lottojson.LottoRequest) interface{} {
+func ErstelleResponseAufLogout(request lottojson.LottoRequest) interface{} {
 
 	var response interface{}
 
-	if !ValidateAuth(apirequest.Auth) {
+	if !ValidiereAuthToken(request.Auth) {
 		response = lottojson.ErrorResponse{
 			Errormessage: "Unauthorisierter Zugriff",
 		}
 	} else {
-		LogoutNutzer(apirequest.Auth)
+		LogoutNutzer(request.Auth)
 		response = lottojson.ErrorResponse{
 			Errormessage: "",
 		}
 	}
 
-	for key, value := range aktiveNutzer {
-		fmt.Printf("Nutzer %s mit PW %s unter Token %s aktiv\n", value.Benutzername, value.Pw_hash, key)
-	}
-
 	return response
 
 }
 
-func InitNutzer() {
+func InitialisiereNutzerliste() {
 
-	aktiveNutzer = make(map[string]lottologic.Nutzer)
+	aktiveNutzer = make(map[string]database.Nutzer)
 
 }
 
-func LoginNutzer(nutzer lottologic.Nutzer) string {
+func LoginNutzer(nutzer database.Nutzer) string {
 
-	auth := ksuid.New().String()
+	authToken := ksuid.New().String()
 
-	aktiveNutzer[auth] = nutzer
+	aktiveNutzer[authToken] = nutzer
 
-	return auth
+	lottolog.InfoLogger.Printf("Nutzer %s hat sich eingeloggt", nutzer.Benutzername)
+
+	return authToken
 }
 
-func LogoutNutzer(auth string) {
+func LogoutNutzer(authToken string) {
 
-	delete(aktiveNutzer, auth)
+	lottolog.InfoLogger.Printf("Nutzer %s hat sich ausgeloggt", aktiveNutzer[authToken].Benutzername)
+
+	delete(aktiveNutzer, authToken)
 
 }

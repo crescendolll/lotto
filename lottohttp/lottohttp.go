@@ -2,54 +2,64 @@ package lottohttp
 
 import (
 	"encoding/json"
-	"fmt"
 	"lotto/lottoapi"
 	"lotto/lottojson"
+	"lotto/lottolog"
 	"net/http"
 )
 
-func OpenLottoServer() {
+func StarteLottoServer() {
 
-	fmt.Println("Lottoserver läuft")
+	lottoapi.InitialisiereNutzerliste()
 
-	lottoapi.InitNutzer()
-
-	http.HandleFunc("/", HttpResponder)
+	http.HandleFunc("/", BeantworteHTTP)
 	http.ListenAndServe(":8080", nil)
 
 }
 
-func HttpResponder(responsewriter http.ResponseWriter, request *http.Request) {
+func BeantworteHTTP(responsewriter http.ResponseWriter, request *http.Request) {
 
 	responsewriter.Header().Set("Content-Type", "application/json")
 
 	headerContentType := request.Header.Get("Content-Type")
 	if headerContentType != "application/json" {
 		apiresponse := lottojson.ErrorResponse{
-			Errormessage: "not a JSON",
+			Errormessage: "Header Content Type nicht korrekt mit application/json gesetzt",
 		}
-		jsonResp, _ := json.Marshal(apiresponse)
-		responsewriter.Write(jsonResp)
+		jsonResponse, jsonFehler := json.Marshal(apiresponse)
+		if jsonFehler == nil {
+			responsewriter.Write(jsonResponse)
+		} else {
+			lottolog.FehlerLogger.Println(jsonFehler.Error())
+		}
 		return
 	}
 	var apirequest lottojson.LottoRequest
 
 	decoder := json.NewDecoder(request.Body)
 	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&apirequest)
-	if err != nil {
+	fehler := decoder.Decode(&apirequest)
+	if fehler != nil {
 		apiresponse := lottojson.ErrorResponse{
-			Errormessage: err.Error(),
+			Errormessage: fehler.Error(),
 		}
-		jsonResp, _ := json.Marshal(apiresponse)
-		responsewriter.Write(jsonResp)
+		jsonResponse, jsonFehler := json.Marshal(apiresponse)
+		if jsonFehler == nil {
+			responsewriter.Write(jsonResponse)
+		} else {
+			lottolog.FehlerLogger.Println(jsonFehler.Error())
+		}
 		return
 	}
 
-	apiresponse := lottoapi.HandleRequest(apirequest)
+	apiresponse := lottoapi.BearbeiteRequest(apirequest)
 
-	jsonResp, _ := json.Marshal(apiresponse)
-	responsewriter.Write(jsonResp)
+	jsonResponse, jsonFehler := json.Marshal(apiresponse)
+	if jsonFehler == nil {
+		responsewriter.Write(jsonResponse)
+	} else {
+		lottolog.FehlerLogger.Println(jsonFehler.Error())
+	}
 
 	return
 }

@@ -5,22 +5,30 @@ import (
 	"fmt"
 	"lotto/database"
 	"lotto/lottohttp"
+	"lotto/lottolog"
+	"lotto/lottologic"
 )
 
 func main() {
 
+	lottolog.OeffneLogdatei()
+
+	database.OeffneVerbindungZurLottoDatenbank()
+
 	if parseAdminFlag() {
 		MitarbeiterEintragen()
 	} else {
-		lottohttp.OpenLottoServer()
+		lottohttp.StarteLottoServer()
 	}
+
+	database.SchliesseVerbindung()
 
 }
 
 func MitarbeiterEintragen() {
 
 	var name string
-	var pw string
+	var passwort string
 
 	fmt.Println("Willkommen bei der Mitarbeiter-Eingabe")
 
@@ -28,14 +36,12 @@ func MitarbeiterEintragen() {
 	fmt.Scanln(&name)
 
 	fmt.Println("Bitte Passwort des Mitarbeiters eingeben")
-	fmt.Scanln(&pw)
+	fmt.Scanln(&passwort)
 
-	databasehandle := database.OpenLottoConnection()
-	err := database.InsertMitarbeiterIntoNutzer(databasehandle, name, pw)
-	database.CloseLottoConnection(databasehandle)
+	fehler := lottologic.FuegeMitarbeiterNachPruefungEin(name, passwort)
 
-	if err != nil {
-		fmt.Println(err.Error())
+	if fehler != nil {
+		fmt.Println(fehler.Error())
 	} else {
 		fmt.Println("Mitarbeiter erfolgreich eingetragen")
 	}
@@ -44,7 +50,7 @@ func MitarbeiterEintragen() {
 
 func parseAdminFlag() bool {
 
-	boolPtr := flag.Bool("useradmin", false, "activate user administration")
+	boolPtr := flag.Bool("admin", false, "Mitarbeiterverwaltung starten")
 
 	flag.Parse()
 
