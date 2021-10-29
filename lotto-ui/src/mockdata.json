@@ -1,0 +1,44 @@
+{
+    "nutzer":[
+        {
+            "benutzername":"user000",
+            "pw_hash":"aiasfdhansfo23op24kjgsgdoj",
+            "ist_spieler":true
+        },
+        {
+            "benutzername":"user001",
+            "pw_hash":"a345345nj09345et3op24kjgsgdoj",
+            "ist_spieler":false
+        }
+    ],
+    "tipps":[
+        {
+            "id":"0",
+            "datum":"29.06.2021",
+            "ziehung":"3907200527094"
+        }, 
+        {
+            "id":"1",
+            "datum":"29.06.2021",
+            "ziehung":"390794"
+        }        
+    ],
+    "ziehungen":[
+        {
+            "datum":"30.06.2021",
+            "ziehung":"4103505783303"
+        }
+    ],
+    "auszahlungen":[
+        {
+            "datum":"06.06.1991",
+            "klasse":"20",
+            "auszahlung":"90000.00"
+        }        
+    ],
+    "gewinn": {
+        "nutzer": "userxxx",
+        "ziehung": "1234567834230",
+        "auszahlung": "15.00"
+    }
+}
