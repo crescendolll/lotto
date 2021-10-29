@@ -1,32 +1,50 @@
-import React from 'react'
+import { React, useState } from 'react'
+import { Modal } from '../Modal'
+import { Link } from '../../Link'
+import { Button } from '../../Button'
+import { NavBar } from '../../NavBar'
+import { ReactComponent as Logo } from '../../../lotto_logo.svg'
 
 export const Header = () => {
+  // const [modal, setModal] = useState(false)
+
+  const openModal = () => {
+    //setModal(true)
+  }
   return (
-    <div className='bg-hellgrau my-9 font-bold text-primary flex justify-between px-6 items-center'>
-      <div className='w-44'>
-        <div className='h-16 w-16 bg-primary hover:bg-primary_neon align-center'>logo</div>
+    <div>
+      <div className='bg-hellgrau my-9 font-bold text-primary flex justify-between p-6 items-center'>
+        <Link link='/'><Logo title='Kleeblatt' className='w-44 align-center' /></Link>
+
+        <NavBar>
+          <Link link='/'>Konto</Link>
+          <Link link='/'>Tipps abgeben</Link>
+          <Link link='/'>Statistik</Link>
+        </NavBar>
+
+        <div className='w-44 align-center'>
+          <Button onClick={() => openModal}>Kontoverwaltung</Button>
+        </div>
       </div>
-      <nav className='content-around'>
-        <ul className='text-sm flex px-2 '>
-          <li className='pr-3 hover:text-primary_neon'>
-            <a href='/'>Konto</a>
-          </li>
-          <li className='pr-3 hover:text-primary_neon'>
-            <a href='/'>Tipps abgeben</a>
-          </li>
-          <li className='hover:text-primary_neon'>
-            <a href='/'>Statistik</a>
-          </li>
-        </ul>
-      </nav>
-      <div className='w-44'> 
-        <a
-          className='bg-primary text-hellgrau px-4 py-2 rounded hover:bg-primary_neon'
-          href='/'
-        >
-          Kontoverwaltung
-        </a>
-      </div>
+      <Modal type='Kontoverwaltung' onClose={() => openModal()}>
+        <Button onClick={() => openModal(false)}>Close</Button>
+      </Modal>
     </div>
   )
+}
+
+{
+  /* <nav className='content-around'>
+          <ul className='text-sm flex px-2 '>
+            <li className='pr-3'>
+              <Link link='/'>Konto</Link>
+            </li>
+            <li className='pr-3 '>
+              <Link link='/'>Tipps abgeben</Link>
+            </li>
+            <li className=''>
+              <Link link='/'>Statistik</Link>
+            </li>
+          </ul>
+        </nav> */
 }
