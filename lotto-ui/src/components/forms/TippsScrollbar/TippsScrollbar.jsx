@@ -1,9 +1,9 @@
 import React from 'react'
 
-export const TippsScrollbar = () => {
+export const TippsScrollbar = (props) => {
     return (
         <div>
-            <b>chevlinks</b> Bisherige Tipps <b>chevrechts</b>
+            <button>{'<'}</button>Bisherige Tipps<button>{'>'}</button>
         </div>
     )
 }

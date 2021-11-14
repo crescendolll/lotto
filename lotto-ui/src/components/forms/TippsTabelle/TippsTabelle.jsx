@@ -14,7 +14,7 @@ import { TippsHeader } from '../TippsHeader/TippsHeader'
 export const TippsTabelle = (props) => {
     const tipps=props.tipps
     return (
-        <div>
+        <div className='border-2 border-dashed border-primary bg-grau w-1/3'>
             <TippsScrollbar/>
             <TippsHeader/>
             {tipps.map(tipp => {return <TippZeile tipp={tipp}/>})}

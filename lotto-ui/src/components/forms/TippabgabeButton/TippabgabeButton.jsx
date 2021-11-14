@@ -1,9 +1,16 @@
 import React from 'react'
+import { Modal } from '../../layout/Modal'
 
 export const TippabgabeButton = () => {
-    return (
-        <div>
-            <b>plus</b> Tipp abgeben
-        </div>
-    )
+  const openModal = () => {
+    return <Modal />
+  }
+  return (
+    <div>
+      <button onClick={() => openModal} className='border px-2 rounded-full'>
+        +
+      </button>
+      Tipp abgeben
+    </div>
+  )
 }
