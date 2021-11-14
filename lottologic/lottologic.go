@@ -35,7 +35,7 @@ type Auszahlungsstatistik struct {
 	Gewinn   float64
 }
 
-func ErstelleAuszahlungsstatistiken(ziehung database.Ziehung) ([]Auszahlungsstatistik, error) {
+var ErstelleAuszahlungsstatistiken = func(ziehung database.Ziehung) ([]Auszahlungsstatistik, error) {
 
 	var auszahlungsstatistiken []Auszahlungsstatistik
 	var auszahlungsstatistik Auszahlungsstatistik
@@ -69,7 +69,7 @@ func ErstelleAuszahlungsstatistiken(ziehung database.Ziehung) ([]Auszahlungsstat
 
 }
 
-func ErstelleZiehungsstatistiken(ziehungen []database.Ziehung) ([]Ziehungsstatistik, error) {
+var ErstelleZiehungsstatistiken = func(ziehungen []database.Ziehung) ([]Ziehungsstatistik, error) {
 
 	var ziehungsstatistiken []Ziehungsstatistik
 	var ziehungsstatistik Ziehungsstatistik
@@ -649,7 +649,7 @@ func BerechneJackpotsteigerung(ziehungsTransaktion *sql.Tx, jackpotAuszahlung da
 
 }
 
-func BerechneGewinneranzahl(ziehungsdatum time.Time) ([10]int, error) {
+var BerechneGewinneranzahl = func(ziehungsdatum time.Time) ([10]int, error) {
 
 	var gewinneranzahl [10]int
 	var ziehung database.Ziehung

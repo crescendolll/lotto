@@ -413,7 +413,7 @@ func HoleZiehungZumDatum(datum time.Time) (Ziehung, error) {
 	return ziehung, selektionFehler
 }
 
-func HoleZiehungenInnerhalbEinesZeitraums(startdatum time.Time, enddatum time.Time) ([]Ziehung, error) {
+var HoleZiehungenInnerhalbEinesZeitraums = func(startdatum time.Time, enddatum time.Time) ([]Ziehung, error) {
 
 	var ziehungen []Ziehung
 	var selektionFehler error
@@ -495,7 +495,7 @@ func FuegeAuszahlungEin(transaktion *sql.Tx, auszahlung Auszahlung) error {
 
 }
 
-func HoleAuszahlungenZumDatum(datum time.Time) ([]Auszahlung, error) {
+var HoleAuszahlungenZumDatum = func(datum time.Time) ([]Auszahlung, error) {
 
 	var auszahlungen []Auszahlung
 	var auszahlung Auszahlung
@@ -549,7 +549,7 @@ func HoleAuszahlungZuDatumUndKlasse(datum time.Time, klasse int8) (Auszahlung, e
 
 }
 
-func HoleLetztenJackpot(transaktion *sql.Tx) (Auszahlung, error) {
+var HoleLetztenJackpot = func(transaktion *sql.Tx) (Auszahlung, error) {
 
 	var jackpot Auszahlung
 

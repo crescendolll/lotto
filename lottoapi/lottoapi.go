@@ -323,11 +323,11 @@ func ErstelleResponseAufTippabgabe(request lottojson.LottoRequest) interface{} {
 
 		nutzer = aktiveNutzer[request.Auth]
 
-		insertError := lottologic.FuegeTippNachPruefungEin(neuerTipp, nutzer)
+		fehler := lottologic.FuegeTippNachPruefungEin(neuerTipp, nutzer)
 
-		if insertError != nil {
+		if fehler != nil {
 			response = lottojson.ErrorResponse{
-				Errormessage: insertError.Error(),
+				Errormessage: fehler.Error(),
 			}
 		} else {
 			response = lottojson.ErrorResponse{
