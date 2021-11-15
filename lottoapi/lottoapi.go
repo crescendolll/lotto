@@ -389,7 +389,7 @@ func ErstelleResponseAufKontoaenderung(request lottojson.LottoRequest) interface
 		} else {
 
 			nutzer := aktiveNutzer[request.Auth]
-			fehler = lottologic.AendereSpielerdatenNachPruefung(nutzer.Benutzername, nutzer.Benutzername, request.Param["neuespasswort"])
+			fehler = lottologic.AendereSpielerdatenNachPruefung(nutzer.Benutzername, request.Param["neuespasswort"])
 
 			if fehler != nil {
 				response = lottojson.ErrorResponse{

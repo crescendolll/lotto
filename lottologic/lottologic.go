@@ -82,15 +82,16 @@ var ErstelleZiehungsstatistiken = func(ziehungen []database.Ziehung) ([]Ziehungs
 
 		if ziehung.Ziehung.Ptr() != nil {
 			auszahlungsstatistiken, fehler = ErstelleAuszahlungsstatistiken(ziehung)
-		}
 
-		if fehler != nil {
-			return ziehungsstatistiken, fehler
-		} else {
-			ziehungsstatistik.Datum = ziehung.Datum
-			ziehungsstatistik.Ziehung = ziehung.Ziehung
-			ziehungsstatistik.Auszahlungen = auszahlungsstatistiken
-			ziehungsstatistiken = append(ziehungsstatistiken, ziehungsstatistik)
+			if fehler != nil {
+				return ziehungsstatistiken, fehler
+			} else {
+				ziehungsstatistik.Datum = ziehung.Datum
+				ziehungsstatistik.Ziehung = ziehung.Ziehung
+				ziehungsstatistik.Auszahlungen = auszahlungsstatistiken
+				ziehungsstatistiken = append(ziehungsstatistiken, ziehungsstatistik)
+			}
+
 		}
 
 	}
@@ -370,28 +371,19 @@ func EroeffneZiehung(ziehung database.Ziehung, mitarbeiter database.Nutzer) erro
 
 }
 
-func AendereSpielerdatenNachPruefung(alterBenutzername string, neuerBenutzername string, neuesPasswort string) error {
+func AendereSpielerdatenNachPruefung(benutzername string, neuesPasswort string) error {
 
 	var fehler error
 	var neuerHash string
 
-	if alterBenutzername != neuerBenutzername {
-		ist_verfuegbar, fehler := database.HoleVerfuegbarkeitEinesBenutzernamens(neuerBenutzername)
-		if fehler == nil && !ist_verfuegbar {
-			fehler = errors.New("Name " + neuerBenutzername + " bereits vergeben")
-		}
-	}
-
-	if fehler == nil {
-		neuerHash, fehler = HashePasswort(neuesPasswort)
-	}
+	neuerHash, fehler = HashePasswort(neuesPasswort)
 
 	if fehler == nil {
 		neueNutzerdaten := database.Nutzer{
-			Benutzername: neuerBenutzername,
+			Benutzername: benutzername,
 			Pw_hash:      neuerHash,
 		}
-		fehler = database.AendereNutzerdaten(neueNutzerdaten, alterBenutzername)
+		fehler = database.AendereNutzerdaten(neueNutzerdaten, benutzername)
 	}
 
 	return fehler
