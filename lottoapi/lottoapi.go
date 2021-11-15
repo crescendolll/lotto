@@ -419,23 +419,43 @@ func ErstelleResponseAufRegistrierung(request lottojson.LottoRequest) interface{
 		}
 	} else {
 
-		neuerNutzer = database.Nutzer{
-			Benutzername: request.Param["name"],
-			Ist_spieler:  true,
+		valide_zeichen := true
+
+		for _, zeichen := range request.Param["name"] {
+			if zeichen == 65533 {
+				valide_zeichen = false
+			}
 		}
 
-		fehler := lottologic.FuegeSpielerNachPruefungEin(neuerNutzer, request.Param["passwort"])
+		for _, zeichen := range request.Param["passwort"] {
+			if zeichen == 65533 {
+				valide_zeichen = false
+			}
+		}
 
-		if fehler != nil {
-			response = lottojson.ErrorResponse{
-				Errormessage: fehler.Error(),
+		if valide_zeichen {
+			neuerNutzer = database.Nutzer{
+				Benutzername: request.Param["name"],
+				Ist_spieler:  true,
+			}
+
+			fehler := lottologic.FuegeSpielerNachPruefungEin(neuerNutzer, request.Param["passwort"])
+
+			if fehler != nil {
+				response = lottojson.ErrorResponse{
+					Errormessage: fehler.Error(),
+				}
+			} else {
+
+				auth := LoginNutzer(neuerNutzer)
+				response = lottojson.RegistrationResponse{
+					Errormessage: "",
+					Auth:         auth,
+				}
 			}
 		} else {
-
-			auth := LoginNutzer(neuerNutzer)
-			response = lottojson.RegistrationResponse{
-				Errormessage: "",
-				Auth:         auth,
+			response = lottojson.ErrorResponse{
+				Errormessage: "Ungültige Zeichen enthalten",
 			}
 		}
 	}
