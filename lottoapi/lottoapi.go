@@ -455,7 +455,7 @@ func ErstelleResponseAufRegistrierung(request lottojson.LottoRequest) interface{
 			}
 		} else {
 			response = lottojson.ErrorResponse{
-				Errormessage: "Ungültige Zeichen enthalten",
+				Errormessage: "Übergebene Daten nicht UTF-8 kodiert",
 			}
 		}
 	}
