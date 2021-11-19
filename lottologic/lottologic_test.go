@@ -288,7 +288,7 @@ func TestErstelleZiehungsstatistiken(test *testing.T) {
 	ziehungen = append(ziehungen, ziehung)
 
 	ziehungsstatistik := Ziehungsstatistik{
-		Datum:        ziehung.Datum,
+		Datum:        ziehung.Datum.Format("2006-01-02"),
 		Ziehung:      ziehung.Ziehung,
 		Auszahlungen: auszahlungsstatistiken,
 	}
@@ -354,7 +354,7 @@ func TestErstelleZiehungsstatistikenFuerZeitraum(test *testing.T) {
 		testziehungen = append(testziehungen, ziehung)
 
 		ziehungsstatistik := Ziehungsstatistik{
-			Datum:        ziehung.Datum,
+			Datum:        ziehung.Datum.Format("2006-01-02"),
 			Ziehung:      ziehung.Ziehung,
 			Auszahlungen: auszahlungsstatistiken,
 		}
@@ -393,7 +393,7 @@ func TestErstelleZiehungsstatistikenFuerZeitraum(test *testing.T) {
 	testziehungen = append(testziehungen, ziehung)
 
 	ziehungsstatistik := Ziehungsstatistik{
-		Datum:        ziehung.Datum,
+		Datum:        ziehung.Datum.Format("2006-01-02"),
 		Ziehung:      ziehung.Ziehung,
 		Auszahlungen: auszahlungsstatistiken,
 	}
