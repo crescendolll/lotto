@@ -17,14 +17,14 @@ import (
 
 type Tippauszahlung struct {
 	Id         int64
-	Datum      time.Time
+	Datum      string
 	Ziehung    string
 	Klasse     int8
 	Auszahlung float64
 }
 
 type Ziehungsstatistik struct {
-	Datum        time.Time
+	Datum        string
 	Ziehung      null.String
 	Auszahlungen []Auszahlungsstatistik
 }
@@ -86,7 +86,7 @@ var ErstelleZiehungsstatistiken = func(ziehungen []database.Ziehung) ([]Ziehungs
 			if fehler != nil {
 				return ziehungsstatistiken, fehler
 			} else {
-				ziehungsstatistik.Datum = ziehung.Datum
+				ziehungsstatistik.Datum = ziehung.Datum.Format("2006-01-02")
 				ziehungsstatistik.Ziehung = ziehung.Ziehung
 				ziehungsstatistik.Auszahlungen = auszahlungsstatistiken
 				ziehungsstatistiken = append(ziehungsstatistiken, ziehungsstatistik)
@@ -129,7 +129,7 @@ func ErstelleTippauszahlungen(tipps []database.Tipp) ([]Tippauszahlung, error) {
 	for _, tipp := range tipps {
 
 		tippauszahlung.Id = tipp.Id
-		tippauszahlung.Datum = tipp.Datum
+		tippauszahlung.Datum = tipp.Datum.Format("2006-01-02")
 		tippauszahlung.Ziehung = tipp.Ziehung
 
 		ziehung, fehler = database.HoleZiehungZumDatum(tipp.Datum)
