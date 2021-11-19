@@ -11,7 +11,9 @@ import (
 
 func main() {
 
-	lottolog.OeffneLogdatei()
+	database.LeseKonfigurationEin()
+
+	lottolog.OeffneLogdatei(database.Lottokonfig.Logdateipfad)
 
 	database.OeffneVerbindungZurLottoDatenbank()
 

@@ -11,8 +11,8 @@ var (
 	FehlerLogger  *log.Logger
 )
 
-func OeffneLogdatei() {
-	logdatei, fehler := os.OpenFile(os.Getenv("LOGPATH"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+func OeffneLogdatei(logdateipfad string) {
+	logdatei, fehler := os.OpenFile(logdateipfad, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if fehler != nil {
 		log.Fatal(fehler)
 	}
@@ -20,8 +20,8 @@ func OeffneLogdatei() {
 	InitialisiereLogLevel(logdatei)
 }
 
-func OeffneTestLogdatei() {
-	logdatei, fehler := os.OpenFile(os.Getenv("TESTLOGPATH"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+func OeffneTestLogdatei(testlogdatepfad string) {
+	logdatei, fehler := os.OpenFile(testlogdatepfad, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if fehler != nil {
 		log.Fatal(fehler)
 	}

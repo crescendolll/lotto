@@ -25,7 +25,7 @@ func NeuerMock() (*sql.DB, sqlmock.Sqlmock) {
 
 func TestFuegeSpielerEin(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -49,7 +49,7 @@ func TestFuegeSpielerEin(test *testing.T) {
 
 func TestFuegeMitarbeiterEin(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -73,7 +73,7 @@ func TestFuegeMitarbeiterEin(test *testing.T) {
 
 func TestFuegeNutzerDoppeltEin(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -104,7 +104,7 @@ func TestFuegeNutzerDoppeltEin(test *testing.T) {
 
 func TestHoleNutzerdatenEinesSpielers(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -130,7 +130,7 @@ func TestHoleNutzerdatenEinesSpielers(test *testing.T) {
 
 func TestHoleNutzerdatenEinesMitarbeiters(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -156,7 +156,7 @@ func TestHoleNutzerdatenEinesMitarbeiters(test *testing.T) {
 
 func TestHoleNutzerdatenEinesNichtVorhandenenNutzers(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -178,7 +178,7 @@ func TestHoleNutzerdatenEinesNichtVorhandenenNutzers(test *testing.T) {
 
 func TestNameVerfuegbar(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -204,7 +204,7 @@ func TestNameVerfuegbar(test *testing.T) {
 
 func TestNameNichtVerfuegbar(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -230,7 +230,7 @@ func TestNameNichtVerfuegbar(test *testing.T) {
 
 func TestAendereNutzerdaten(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -254,7 +254,7 @@ func TestAendereNutzerdaten(test *testing.T) {
 
 func TestAendereNutzerdatenZuEinemVergebenenNamen(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -295,7 +295,7 @@ func TestAendereNutzerdatenZuEinemVergebenenNamen(test *testing.T) {
 
 func TestLoescheNutzerdaten(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -326,7 +326,7 @@ func TestLoescheNutzerdaten(test *testing.T) {
 
 func TestFuegeTippEin(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -354,7 +354,7 @@ func TestFuegeTippEin(test *testing.T) {
 
 func TestHoleTippdatenEinesSpielers(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	var tipps []Tipp
 
@@ -391,7 +391,7 @@ func TestHoleTippdatenEinesSpielers(test *testing.T) {
 
 func TestHoleTippsZumDatum(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	var tipps []Tipp
 
@@ -424,7 +424,7 @@ func TestHoleTippsZumDatum(test *testing.T) {
 
 func TestFuegeSpielerTippVerknuepfungEin(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -446,7 +446,7 @@ func TestFuegeSpielerTippVerknuepfungEin(test *testing.T) {
 
 func TestFuegeZiehungEin(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -471,7 +471,7 @@ func TestFuegeZiehungEin(test *testing.T) {
 
 func TestHoleOffeneZiehungen(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	var ziehungen []Ziehung
 
@@ -504,7 +504,7 @@ func TestHoleOffeneZiehungen(test *testing.T) {
 
 func TestHoleLetztesZiehungsdatum(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -529,7 +529,7 @@ func TestHoleLetztesZiehungsdatum(test *testing.T) {
 
 func TestZiehungVerfuegbar(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -554,7 +554,7 @@ func TestZiehungVerfuegbar(test *testing.T) {
 
 func TestZiehungNichtVerfuegbar(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -579,7 +579,7 @@ func TestZiehungNichtVerfuegbar(test *testing.T) {
 
 func TestHoleZiehungZumDatum(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -605,7 +605,7 @@ func TestHoleZiehungZumDatum(test *testing.T) {
 
 func TestHoleZiehungenInnerhalbEinesZeitraums(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -640,7 +640,7 @@ func TestHoleZiehungenInnerhalbEinesZeitraums(test *testing.T) {
 
 func TestAendereZiehung(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -666,7 +666,7 @@ func TestAendereZiehung(test *testing.T) {
 
 func TestFuegeMitarbeiterZiehungVerknuepfungEin(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -688,7 +688,7 @@ func TestFuegeMitarbeiterZiehungVerknuepfungEin(test *testing.T) {
 
 func TestFuegeAuszahlungEin(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -717,7 +717,7 @@ func TestFuegeAuszahlungEin(test *testing.T) {
 
 func TestHoleAuszahlungenZumDatum(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	var auszahlungen []Auszahlung
 
@@ -754,7 +754,7 @@ func TestHoleAuszahlungenZumDatum(test *testing.T) {
 
 func TestHoleAuszahlungZuDatumUndKlasse(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -779,7 +779,7 @@ func TestHoleAuszahlungZuDatumUndKlasse(test *testing.T) {
 
 func TestHoleGroessteTippID(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 
@@ -800,7 +800,7 @@ func TestHoleGroessteTippID(test *testing.T) {
 
 func TestHoleLetztenJackpot(test *testing.T) {
 
-	lottolog.OeffneTestLogdatei()
+	lottolog.OeffneTestLogdatei(Lottokonfig.Testlogdateipfad)
 
 	mockVerbindung, mockDatenbank := NeuerMock()
 

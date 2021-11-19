@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"log"
 	"lotto/lottolog"
 	"os"
@@ -12,6 +14,16 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/guregu/null"
 )
+
+type Lottokonfiguration struct {
+	Benutzer         string
+	Passwort         string
+	Datenbankport    string
+	Logdateipfad     string
+	Testlogdateipfad string
+}
+
+var Lottokonfig Lottokonfiguration
 
 type Nutzer struct {
 	Benutzername string
@@ -39,6 +51,17 @@ type Auszahlung struct {
 
 var datenbankVerbindung *sql.DB
 
+func LeseKonfigurationEin() {
+
+	konfigdatei, _ := os.Open("lottoconf.json")
+	defer konfigdatei.Close()
+	decoder := json.NewDecoder(konfigdatei)
+	einlesefehler := decoder.Decode(&Lottokonfig)
+	if einlesefehler != nil {
+		fmt.Println("Fehler beim Einlesen der Konfiguration:", einlesefehler)
+	}
+}
+
 func HoleVerbindung() *sql.DB {
 	return datenbankVerbindung
 }
@@ -58,10 +81,10 @@ func OeffneVerbindungZurLottoDatenbank() {
 
 	// Verbindung konfigurieren, die Zugangsdaten zur Datenbank sind als Umgebungsvariablen zu setzen
 	konfiguration := mysql.Config{
-		User:      os.Getenv("DBUSER"),
-		Passwd:    os.Getenv("DBPASS"),
+		User:      Lottokonfig.Benutzer,
+		Passwd:    Lottokonfig.Passwort,
 		Net:       "tcp",
-		Addr:      "127.0.0.1:" + os.Getenv("DBPORT"),
+		Addr:      "127.0.0.1:" + Lottokonfig.Datenbankport,
 		DBName:    "lotto",
 		ParseTime: true,
 	}
