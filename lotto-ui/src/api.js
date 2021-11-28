@@ -19,7 +19,7 @@ export const signUp = (name, password) => {
   })
 }
 
-//Sign in user (player/employee) with name, password (NO AUTH) --> RESPONSE: auth: ""
+//Sign in user (player/employee) with name, password (NO AUTH) --> RESPONSE: auth: "", istspieler
 export const login = (name, password) => {
   return request({
     methode: 'login',
