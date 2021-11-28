@@ -15,3 +15,5 @@ yarn-error.log*
 .env
 lotto-ui/oldDefaults_App.css
 lottoconf.json
+lottolog.txt
+lotto.http
