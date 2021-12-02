@@ -1,12 +1,11 @@
 import React from 'react'
 
-export const TippZeile = (props) => {
-    const tipp=props.tipp
+export const TippZeile = ({tip}) => {
     return (
         <div>
-            <i>  {tipp.datum} </i> | 
-            <b> {tipp.ziehung} </b> | 
-            <i> {tipp.id} </i> 
+            <i>  {tip.Datum} </i> | 
+            <b> {tip.Klasse} </b> | 
+            <i> {tip.Id} </i> 
         </div>
     )
 }
