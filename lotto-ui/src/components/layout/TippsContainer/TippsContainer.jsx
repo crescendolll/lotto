@@ -3,11 +3,10 @@ import { TippsTabelle } from '../../forms/TippsTabelle/TippsTabelle'
 import { TippabgabeButton } from '../../forms/TippabgabeButton/TippabgabeButton'
 import { AnsichtSwitch } from '../../forms/AnsichtSwitch/AnsichtSwitch'
 
-export const TippsContainer = (props) => {
-    const tipps=props.tipps
+export const TippsContainer = ({tipps, onLogin}) => {
     return (
         <div> 
-            <TippabgabeButton/>
+            <TippabgabeButton onLogin={onLogin}/>
             <AnsichtSwitch/>
             <TippsTabelle tipps={tipps}/>
         </div>
