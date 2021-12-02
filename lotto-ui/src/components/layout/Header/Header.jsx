@@ -13,7 +13,7 @@ export const Header = () => {
   }
   return (
     <div>
-      <div className='bg-hellgrau my-9 font-bold text-primary flex justify-between p-6 items-center'>
+      <div className='bg-hellgrau mb-9 font-bold text-primary flex justify-between p-6 items-center'>
         <Link link='/'><Logo title='Kleeblatt' className='w-44 align-center' /></Link>
 
         <NavBar>
@@ -31,20 +31,4 @@ export const Header = () => {
       </Modal>
     </div>
   )
-}
-
-{
-  /* <nav className='content-around'>
-          <ul className='text-sm flex px-2 '>
-            <li className='pr-3'>
-              <Link link='/'>Konto</Link>
-            </li>
-            <li className='pr-3 '>
-              <Link link='/'>Tipps abgeben</Link>
-            </li>
-            <li className=''>
-              <Link link='/'>Statistik</Link>
-            </li>
-          </ul>
-        </nav> */
 }
