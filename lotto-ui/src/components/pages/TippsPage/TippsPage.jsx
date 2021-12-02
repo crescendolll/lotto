@@ -1,16 +1,40 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Header } from '../../layout/Header/Header'
 import { Footer } from '../../layout/Footer/Footer'
-import { TippsContainer } from '../../layout/TippsContainer/TippsContainer'
+import { TippsTabelle } from '../../forms/TippsTabelle/TippsTabelle'
+import { TippabgabeButton } from '../../forms/TippabgabeButton/TippabgabeButton'
+import { AnsichtSwitch } from '../../forms/AnsichtSwitch/AnsichtSwitch'
+import { getTips, getOpenGames, getClosedGames } from '../../../api'
+import { Button } from '../../Button'
 
-export const TippsPage = (props) => {
-    const tipps = props.tipps
+export const TippsPage = ({ auth }) => {
+  // const [username, setUsername] = useState(null)
 
-    return (
-        <div>
-            <Header/>
-            <TippsContainer tipps={tipps}/>
-            <Footer/>
-        </div>
-    )
+  const [tiplist, setTips] = useState([])
+
+  const [openGames, setOpenGames] = useState([])
+
+  useEffect(() => {
+    getTips(auth, '', '').then((data) => {
+      return setTips(data.statistik)
+    })
+  }, [])
+
+  const onGetOpenGames = (auth) => {
+    console.log(auth)
+    getOpenGames(auth).then((data) => {
+      return setOpenGames(data.ziehungstage)
+    })
+  }
+
+  return (
+    <div>
+      <Header />
+      <Button onClick={() => onGetOpenGames(auth)}>get open Games</Button>
+      {openGames.length > 0 ? <TippsTabelle tips={openGames} /> : null}
+      <AnsichtSwitch />
+      <TippsTabelle tips={tiplist} />
+      <Footer />               
+    </div>
+  )
 }
