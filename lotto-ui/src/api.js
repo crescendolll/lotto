@@ -60,11 +60,12 @@ export const deleteAccount = (auth) => {
 
 //Submit tip made by player with date, auth -> RESPONSE:
 //only if date in future & employee has set this date to be filled previously
-export const submitTip = (auth, date) => {
+export const submitTip = (auth, tip, date) => {
   return request({
     auth,
     methode: 'neuerTipp',
     param: {
+      tipp: tip,
       datum: date,
     },
   })
