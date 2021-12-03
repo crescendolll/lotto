@@ -6,17 +6,14 @@ import { TippabgabeButton } from '../../forms/TippabgabeButton/TippabgabeButton'
 import { AnsichtSwitch } from '../../forms/AnsichtSwitch/AnsichtSwitch'
 import { getTips, getOpenGames, getClosedGames, submitTip } from '../../../api'
 import { Button } from '../../Button'
+import DayPickerInput from 'react-day-picker/DayPickerInput'
+import 'react-day-picker/lib/style.css'
 
 export const TippsPage = ({ auth, onLogout }) => {
-  // const [username, setUsername] = useState(null)
-
   const [tiplist, setTips] = useState([])
-
   const [openGames, setOpenGames] = useState([])
-
   const [date, setDate] = useState('')
   const [tipsubmission, setTipsubmission] = useState('')
-
   const [showTipSubmit, setShowTipSubmit] = useState(false)
 
   useEffect(() => {
@@ -38,14 +35,18 @@ export const TippsPage = ({ auth, onLogout }) => {
 
   const onSubmit = (e) => {
     e.preventDefault()
-    submitTip(auth, tipsubmission, date).then((data) => console.log(data))
+    if (date && tipsubmission) {
+      submitTip(auth, tipsubmission, date.toLocaleDateString('en-CA')).then(
+        (data) => console.log(data)
+      )
+    }
     setShowTipSubmit(false)
     setDate('')
     setTipsubmission('')
   }
 
-  const onChangeDate = (event) => {
-    setDate(event.target.value)
+  const onChangeDate = (date) => {
+    setDate(date)
   }
 
   const onChangeTipsubmission = (event) => {
@@ -58,17 +59,24 @@ export const TippsPage = ({ auth, onLogout }) => {
       <Button onClick={() => onGetOpenGames(auth)}>get open Games</Button>
 
       {showTipSubmit ? (
-        <form onSubmit={onSubmit} className='my-9 bg-grau max-w-min min-w-max p-2'>
+        <form
+          onSubmit={onSubmit}
+          className='my-9 bg-grau max-w-min min-w-max p-2'
+        >
           <Button>Submit</Button>
-          <input
-            type='date'
-            size='20'
-            onChange={onChangeDate}
-            className=' mx-2 border rounded-md border-dunkelgrau'
+          <DayPickerInput
+            onDayChange={(date) => onChangeDate(date)}
+            placeholder='Available Dates'
+            dayPickerProps={{
+              disabledDays: {
+                before: new Date(),
+              },
+            }}
           />
           <input
             type='text'
             size='20'
+            placeholder='Enter Tipp'
             onChange={onChangeTipsubmission}
             className=' mx-2 border rounded-md border-dunkelgrau'
           />
@@ -78,8 +86,9 @@ export const TippsPage = ({ auth, onLogout }) => {
           <Button onClick={onOpenSubmitTip}>+</Button> Submit a Tip
         </div>
       )}
+
       {openGames.length > 0 ? <TippsTabelle tips={openGames} /> : null}
-      <AnsichtSwitch />
+      {/* <AnsichtSwitch /> */}
       <TippsTabelle tips={tiplist} />
       <Footer />
     </div>
