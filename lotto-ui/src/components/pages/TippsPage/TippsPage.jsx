@@ -7,7 +7,7 @@ import { AnsichtSwitch } from '../../forms/AnsichtSwitch/AnsichtSwitch'
 import { getTips, getOpenGames, getClosedGames } from '../../../api'
 import { Button } from '../../Button'
 
-export const TippsPage = ({ auth }) => {
+export const TippsPage = ({ auth, onLogout }) => {
   // const [username, setUsername] = useState(null)
 
   const [tiplist, setTips] = useState([])
@@ -29,7 +29,7 @@ export const TippsPage = ({ auth }) => {
 
   return (
     <div>
-      <Header />
+      <Header auth={auth} onLogout={onLogout}/>
       <Button onClick={() => onGetOpenGames(auth)}>get open Games</Button>
       {openGames.length > 0 ? <TippsTabelle tips={openGames} /> : null}
       <AnsichtSwitch />

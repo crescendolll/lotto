@@ -4,7 +4,7 @@ import { login, logout } from './api'
 import { LandingPage } from './components/pages/TippsPage/LandingPage'
 
 function App() {
-  const [auth, setAuth] = useState('21jqOg4He7nM35H2NDzOJ8BWoje')
+  const [auth, setAuth] = useState('')
   const onLogin = (username, password) => {
     login(username, password).then((data) => {
       setAuth(data.auth)
@@ -13,12 +13,19 @@ function App() {
   }
 
   const onLogout = () => {
-    logout(auth).then((data) => setAuth(null))
+    logout(auth).then((data) => {
+      setAuth(null)
+      console.log(data)
+    })
   }
 
   return (
     <div>
-      {auth ? <TippsPage auth={auth} /> : <LandingPage onLogin={onLogin} onLogout={onLogout} />}
+      {auth ? (
+        <TippsPage auth={auth} onLogout={onLogout} />
+      ) : (
+        <LandingPage onLogin={onLogin} onLogout={onLogout} />
+      )}
     </div>
   )
 }
