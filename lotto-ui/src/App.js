@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { TippsPage } from './components/pages/TippsPage/TippsPage'
-import { login, logout } from './api'
+import { login, logout, signUp } from './api'
 import { LandingPage } from './components/pages/TippsPage/LandingPage'
 
 function App() {
   const [auth, setAuth] = useState('')
+
   const onLogin = (username, password) => {
     login(username, password).then((data) => {
       setAuth(data.auth)
@@ -19,12 +20,16 @@ function App() {
     })
   }
 
+  const onSignUp = (username, password) => {
+    signUp(username,password).then((data) => {console.log(data)})
+  }
+
   return (
     <div>
       {auth ? (
         <TippsPage auth={auth} onLogout={onLogout} />
       ) : (
-        <LandingPage onLogin={onLogin} onLogout={onLogout} />
+        <LandingPage onLogin={onLogin} onLogout={onLogout} onSignUp={onSignUp}/>
       )}
     </div>
   )
