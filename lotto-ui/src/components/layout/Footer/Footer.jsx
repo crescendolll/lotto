@@ -1,6 +1,7 @@
 import React from 'react'
 import { ReactComponent as Logo } from '../../../lotto_logo.svg'
 import { Link } from '../../Link'
+import {ReactComponent as Github} from '../../../Octicons-mark-github.svg'
 
 export const Footer = () => {
   return (
@@ -15,7 +16,9 @@ export const Footer = () => {
           </a>
           <a href='/'>For Employers</a>
         </div>
-        <div>socials</div>
+        <Link link='https://github.com/crescendolll/lotto'>
+          <Github title='Github Repo' className='w-44 align-center p-4' />
+        </Link>
         <div className='text-xs pb-20'>
           Coded with React and Go and a lot of ❤ in Berlin ©2021 Lotto-App
         </div>
